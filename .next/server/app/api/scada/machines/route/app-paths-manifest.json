@@ -1,0 +1,3 @@
+{
+  "/api/scada/machines/route": "app/api/scada/machines/route.js"
+}

@@ -1,0 +1,11 @@
+{
+  "/api/analytics/daily/route": "/api/analytics/daily",
+  "/api/analytics/historical/route": "/api/analytics/historical",
+  "/api/analytics/insights/route": "/api/analytics/insights",
+  "/api/analytics/monthly/route": "/api/analytics/monthly",
+  "/api/scada/machine-details/route": "/api/scada/machine-details",
+  "/api/scada/machines/route": "/api/scada/machines",
+  "/api/scada/production/route": "/api/scada/production",
+  "/favicon.ico/route": "/favicon.ico",
+  "/page": "/"
+}

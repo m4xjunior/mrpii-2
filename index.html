@@ -1,0 +1,1902 @@
+<!DOCTYPE html>
+<!--
+To change this license header, choose License Headers in Project Properties.
+To change this template file, choose Tools | Templates
+and open the template in the editor.
+-->
+<html>
+    <head>
+	<title>Planta de Grupo KH</title> 
+	<link rel="shortcut icon" type="image/x-icon" href="../images/logo_kh.ico">
+	<meta name="viewport" content="width=device-width, initial-scale=1 ,  user-scalable=no"> 
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable"  content="yes">
+        
+        
+        
+	<link rel="stylesheet" href="../css/jquery.mobile-1.4.5.min.css" />
+	<script src="../libs/jquery-2.1.4.min.js"></script>
+	<script src="../libs/jquery.mobile-1.4.5.min.js"></script>
+	<script src="../libs/jquery.blockUI.js"></script>
+	<script src="../libs/DataTables/datatables.js"></script>
+        <style type="text/css">
+html,body { 
+  overflow:hidden; 
+}
+</style>
+  <script>             
+var ratio =1  ;
+var rotar = 0;
+function escalar(){    
+
+ function getViewportWidth() {
+
+                    return window.innerWidth;
+
+            }
+
+            function getViewportHeight() {
+
+                    return window.innerHeight;
+
+            }
+          
+                var actual_width ;
+                var actual_height ;
+
+
+                 actual_width = getViewportWidth()  ;
+                 actual_height = getViewportHeight() ;
+
+//alert ( "X: " + actual_width + " Y : " + actual_height );
+
+		//if (actual_width > 1280 ) actual_width = 1280;
+
+
+
+                var min_width = 1600;
+                var min_height = 1200;
+                
+                $('#ancho').text = actual_width;
+                $('.alto').val(actual_height);
+                //alert(actual_width);
+
+var ratio =  (actual_width / min_width) - .1;
+
+//alert(ratio);
+
+                     $('.screen').css('zoom', ' ' + ratio * 100 + '%');
+
+ //window.scrollTo(0, 15);
+
+}
+
+$( window ).resize(function() {
+      //alert("RES2");
+escalar();
+});
+
+//function setRefresco(){
+  //  window.setInterval(refresco(),5000);
+    
+//}
+
+var arduino = 0;
+var contaarduino = 0;
+var ajaxposicion = 0;
+var contaposicion = 0;
+var load = 0;
+var contaload = 0;
+var tid;
+var contador;
+var referencia;
+var semaforo = 0;
+contador = 0;
+var hora = 0;
+var tiempo = 0;
+var operarios;
+var posiciones = 10;
+var ciclo = 0;
+var contaciclos = 0;
+var contaciclos_ant = 0;
+var cantidad = 0;
+var entrada= new Date();
+var tiempo_insp_uni = 15;
+var barra = 0;
+var of = "";
+var hora_entrada = "";
+var fecha_entrada = "";
+
+var posicion = '<?php echo $_GET["posicion"];?>';
+var html = '';
+var html_ant = 'VACIA';
+var barra_siguiente = "";
+var primera_carga = 1;
+var alerta = 0;
+
+var ult_ciclo = 0;
+var ult_conta_ciclo = 0;
+var cod_incidencia = 0;
+var tmp_ciclos = 0;
+
+var est_of = '';
+var est_ciclos = 0;
+var est_fecha = "00000000";
+var est_hora = 0;
+var est_incidencia = 0;
+
+var vest_hora ="00:00:00";
+var aviso_inc = 0;
+
+var incidencia = 0;
+var inc_inicio = "00:00:00";
+var base = 15*60;
+
+ //$( "#posicion" ).empty();
+ //$( "#posicion" ).append( posicion );
+
+var bench  = 1000 + new Date().getTime(),
+    timer  = setInterval(
+               function(){ 
+                 checkTime(bench); 
+               }
+               , 1000
+             );
+var html_ant = "INICIO";
+
+var wait_posicion = 0;
+var wait_arduino = 0;
+var wait_load = 0;
+var desconectado = "NO";
+var desconectadaImp = "NO";
+var imputanok = 0;
+
+var ip = 10;
+var	puesto= ""+<?php echo "'".$_GET["posicion"]."'";?>+"";
+
+$.ajax({
+                url: "php/PosicionScada.php?puesto="+posicion,
+                cache: false,
+                async: true,
+                success: function(posicionScada){
+                $("#posicionD").empty();    
+                $( "#posicionD" ).append( posicionScada);
+                //alert("*"+html+"*");
+                
+                
+				
+				vposicionScada = posicionScada.split("|");
+				$( "#barra" ).empty();
+                $( "#referencia" ).empty();
+                $( "#descripcion" ).empty();
+				$("#posicionD").empty();    
+				$("#of").empty(); 
+				$("#cantidad").empty();
+                $( "#posicionD" ).append( vposicionScada[0]);
+               // $( "#barra" ).append( vposicionScada[1]);
+                $( "#referencia" ).append( vposicionScada[2]);	
+				$( "#descripcion" ).append( vposicionScada[3]);	
+				$("#of").append( vposicionScada[1]);
+				$("#cantidad").append( vposicionScada[6] + " / " + vposicionScada[4]);
+				}
+                });	
+				
+	
+$.ajax({
+                url: "php/operariosScada.php?puesto="+posicion + "&referencia=" + referencia,
+                cache: false,
+                async: true,
+                success: function(html){
+                $("#operarios").empty();    
+                $( "#operarios" ).append( html);
+                //alert("*"+html+"*");
+                if (html.length<15) {
+               
+        operarios = 0;
+        deshabilitar();
+        //alert("deshabilitar");
+                } else {
+        operarios = 1;
+        habilitar();
+        //alert("habilitar");
+                }  
+                }
+                });
+				
+					
+$.ajax({
+                url: "php/Posicion.php?puesto="+posicion,
+                cache: false,
+                async: true,
+                success: function(html){
+                $("#posicionD").empty();    
+                $( "#posicionD" ).append( html);
+                //alert("*"+html+"*");
+                
+                }
+                });
+      /*          
+$.ajax({
+              
+                	
+               	
+                url: "http://10.0." + ip + "." + ip2 + "/updateFiles.php?posicion=" + posicion,
+                cache: false,
+                async: true,
+                //timeout: 3000,
+                success: function(html2){ 
+                //	arduino=0;
+                //	contaarduino = 0;
+                //	alert("HOLA");
+                // if (posicion=="MAQ00" ) {    
+                 	//	$( "#datos" ).empty();
+                //	$( "#datos" ).append(html);
+                		//$( "#datos" ).append(html2);
+                		//	$("#datos").html(html2 + "<br>" + 	$("#datos").html());
+                 	
+                // }
+                }
+                
+                });     */           
+
+
+function checkTime(this_time){
+    function checkTime(i) {
+        return (i < 10) ? "0" + i : i;
+    }
+    
+    contaload++;
+    if ((contaload > 5)) {
+    	load = 0;
+    	contaload = 0;
+    }	
+  
+    
+    var check = new Date - this_time;
+	
+	
+	$("#hora").empty();
+        var today = new Date();
+        h = checkTime(today.getHours()),
+        m = checkTime(today.getMinutes()),
+        s = checkTime(today.getSeconds());
+           
+            		$( "#hora" ).append("<H1>"+h + ":" + m + ":" + s+"</H1>");
+            	
+	if ((contaload ==0)) {
+	$.ajax({
+                url: "php/PosicionScada.php?puesto="+posicion,
+                cache: false,
+                async: true,
+                success: function(posicionScada){
+                $("#posicionD").empty();    
+                $( "#posicionD" ).append( posicionScada);
+                //alert("*"+html+"*");
+                
+                
+				
+				vposicionScada = posicionScada.split("|");
+				$( "#barra" ).empty();
+                $( "#referencia" ).empty();
+                $( "#descripcion" ).empty();
+				$("#posicionD").empty();    
+				$("#of").empty(); 
+				$("#cantidad").empty();
+                $( "#posicionD" ).append( vposicionScada[0]);
+               // $( "#barra" ).append( vposicionScada[1]);
+                $( "#referencia" ).append( vposicionScada[2]);	
+				$( "#descripcion" ).append( vposicionScada[3]);	
+				$("#of").append( vposicionScada[1]);
+				$("#cantidad").append( vposicionScada[6] + " / " + vposicionScada[4]);
+				}
+                });	
+				
+				
+				$.ajax({
+                url: "php/operariosScada.php?puesto="+posicion + "&referencia=" + referencia,
+                cache: false,
+                async: true,
+                success: function(html){
+                $("#operarios").empty();    
+                $( "#operarios" ).append( html);
+                //alert("*"+html+"*");
+                if (html.length<15) {
+               
+				operarios = 0;
+				deshabilitar();
+				//alert("deshabilitar");
+                } else {
+				operarios = 1;
+				habilitar();
+				//alert("habilitar");
+                }  
+                }
+                });
+				
+				
+				
+                /*	est_of = vestado[0];
+                	est_ciclos = vestado[1]*1;
+                	est_fecha = vestado[2];
+                	est_hora = vestado[3];
+                	vest_hora = est_hora.split(":");
+                	est_incidencia = vestado[4]*1;
+					
+					
+				$( "#barra" ).empty();
+                $( "#referencia" ).empty();
+                $( "#descripcion" ).empty();
+                
+                $( "#cantidad" ).empty();
+                $( "#barra" ).append( ciclos[0]);
+                $( "#referencia" ).append( ciclos[9]);
+                 referencia = ciclos[9];
+                $.ajax({
+                url: "php/operarios.php?puesto="+posicion + "&referencia=" + referencia,
+                cache: false,
+                async: true,
+                success: function(html){
+                $("#operarios").empty();    
+                $( "#operarios" ).append( html);
+				*/
+				
+				
+				
+		}		
+				
+    if(check=0){
+    	
+    	
+    	
+    	
+    	
+    	
+    	
+    	
+    	
+    	
+        //contador++;
+        
+            	
+            	
+            	//ESTADO
+            	
+            	//VER HORA ULTIMO CICLO y ULTIMO CICLO
+            	
+            	$.ajax({
+              
+                	
+               	url: "http://10.0." + ip + "." + ip2 + "/maquina/estado.txt",
+                cache: false,
+                async: true,
+                //timeout: 3000,
+                dataType: "text",
+                success: function(estado){ 
+                //	alert(estado);
+                
+                if (estado!="") {//actualiza_estado();
+                
+                	vestado = estado.split("|");
+                	
+                	est_of = vestado[0];
+                	est_ciclos = vestado[1]*1;
+                	est_fecha = vestado[2];
+                	est_hora = vestado[3];
+                	vest_hora = est_hora.split(":");
+                	est_incidencia = vestado[4]*1;
+                	
+                	
+                	if (ult_conta_ciclo == 0) ult_conta_ciclo = est_ciclos*1;
+                	if (ult_ciclo == 0) ult_ciclo = est_hora;
+                } else {
+                    
+                    $.ajax({
+                url:    "php/OFsMaquinaCurso.php?posicion="+ $( "#posicion" ).html(),
+                cache: false,
+                async: true,
+                success: function(html){
+               //  $("#datos").html(html);
+                }
+
+
+        });
+                    
+                    
+                }
+                
+                
+                
+                }
+                
+                });
+                
+                
+                
+                
+                $.ajax({
+              
+                	
+               	url: "http://10.0." + ip + "." + ip2 + "/arduino.txt",
+                //url: "http://localhost/maquina/estado.txt",
+                cache: false,
+                async: true,
+                //timeout: 3000,
+                dataType: "text",
+                success: function(estado_arduino){ 
+                	//alert(estado_arduino);
+                	
+                	//if (posicion =="MAQ00") alert("*" + estado_arduino.trim().substring(0, 2) + "*"+"OFF".trim().substring(0, 2) + "*");
+                	if (estado_arduino.trim().substring(0, 2)=="OF"){
+                		$("#toperarios").css('background-color', 'red');
+                		
+                		if ((desconectado!="SI")){
+                		$.blockUI.defaults.css.width = '0px'; 
+                 $.blockUI.defaults.css.height = '0px'; 
+                 $.blockUI.defaults.css.backgroundcolor = '#000';
+                 $.blockUI.defaults.css.border = '0px';
+                 $.blockUI.defaults.css.top =  '10%';
+                 $.blockUI.defaults.css.left = '10%';
+        
+               $.blockUI ({ message: ''+'<div style="background-color:red;height:100%;"><h1>ARDUINO DESCONECTADO</h1><br>Volver a conectar para poder usar la pantalla.</body>'+''   ,  css : { height: 'auto',  'width': '80%' ,  'height': '80%' ,'cursor':'auto' , 'overflow' : 'none' } });
+                		desconectado = "SI";
+                	}
+                	} else {
+                		if (desconectado=="SI") $.unblockUI();
+                		$("#toperarios").css('background-color', 'lightgray');
+                		desconectado = "NO";
+                	}
+                	
+                }
+                
+                });
+                
+                
+                
+                
+                
+        
+                
+                
+                
+                
+                
+                
+                
+                	if (ult_conta_ciclo != est_ciclos) {
+                
+                $.ajax({
+              
+                	
+               	
+                url: "http://10.0." + ip + "." + ip2 + "/updateFiles.php?posicion=" + posicion,
+                cache: false,
+                async: true,
+                //timeout: 3000,
+                success: function(html2){ 
+                
+                }
+                
+                });
+                
+                
+                	}
+                
+            	
+            	
+            	//var vest_hora = est_hora.split(":");
+            	var a = new Date(); // Current date now.
+            	//alert ( est_fecha.substring(0,4) + "/" + est_fecha.substring(4,6) + "/" + est_fecha.substring(6,8) );
+				var b = new Date(est_fecha.substring(0,4), est_fecha.substring(4,6)-1, est_fecha.substring(6,8),  vest_hora[0], vest_hora[1], vest_hora[2] , 0); // Start of 2010.
+				
+				var seconds = parseInt((a-b)/1000);
+            	//alert (a + " " + b + " " + seconds);
+            	
+            	
+            	 if ( (contaarduino>=3)){	
+            	
+            	$.ajax({
+              
+                	
+               	url: "http://10.0." + ip + "." + ip2 + "/maquina/INCMAQ"+ip2+".txt",
+                //url: "http://localhost/maquina/estado.txt",
+                cache: false,
+                async: false,
+                //timeout: 3000,
+                dataType: "text",
+                success: function(inc){ 
+                //	alert(estado);
+                	vinc = inc.split("|");
+                	
+                	
+                	est_incidencia = vinc[2];
+                	
+                	
+                
+                	
+                }
+                
+                });
+            	
+            	 }if (/*(est_incidencia != 0) && */(est_incidencia == 103) ||(est_incidencia == 101) ) {
+            		
+            	//	if (posicion=="MAQ00" ) alert ("INC 103");
+            		//desactivar NOK y etiquetas
+            	//if ( (puesto == "MAQ00")   ) alert ("NUEVO CLICLO EN INCIDENCIA" + ult_conta_ciclo + " " + est_ciclos + " " + est_hora + " INC " + est_incidencia);
+            		$( "#NOK" ).addClass('mobile-button-disabled');
+        			$( "#NOK" ).button( "option", "disabled", true );
+			        $( "#ETIQUETA" ).addClass('mobile-button-disabled');
+			        $( "#ETIQUETA" ).button( "option", "disabled", true );
+			        $( "#NOK" ).prop( "disabled", true );
+			        $( "#ETIQUETA" ).prop( "disabled", true );
+        			//tmp_ciclos =  ult_conta_ciclo*1 ;
+        			
+            		if ((ult_conta_ciclo*1 < est_ciclos*1) && (tmp_ciclos*1 < est_ciclos*1) &&(imputanok == 0)) {
+            			ult_conta_ciclo = est_ciclos*1;
+            			imputanok =1;
+            		 $.ajax({
+                url: "php/ParteNokIncidencia.php?puesto="+posicion+"&of="+barra+"&rechazo="+est_incidencia+"&ciclos="+ est_ciclos ,//+"-" +ult_conta_ciclo+" - "+ tmp_ciclos  +"",
+                cache: false,
+                async: false,
+                success: function(html){ 
+                	 wait_posicion = 0;
+                	 imputanok =0;
+                	 tmp_ciclos = est_ciclos*1;
+                }
+            		 });
+            		//	alert ("NUEVO CLICLO EN INCIDENCIA" + ult_conta_ciclo + " " + est_ciclos + " " + est_hora);
+            		tmp_ciclos = est_ciclos*1;
+            		}
+            		
+            	} else {
+            		
+            		//activar NOK y etiquetas
+            		if (operarios>0){
+			        $( "#NOK" ).removeClass('mobile-button-disabled');
+			        $( "#NOK" ).button( "option", "disabled", false );
+			        $( "#ETIQUETA" ).removeClass('mobile-button-disabled');
+			        $( "#ETIQUETA" ).button( "option", "disabled", false );
+			        $( "#NOK" ).prop( "disabled", false );
+			        $( "#ETIQUETAS" ).prop( "disabled", false );
+            		}
+            		
+            	}
+            	
+            	ult_conta_ciclo = est_ciclos*1;
+            	
+            	
+            	
+            	
+            	
+            	
+            	
+            	
+            	
+            	
+            	
+            
+                
+                 
+                	
+                	if (contaarduino>10) {
+                		arduino = 0;
+                		contaarduino = 0;
+                	}
+                  if ((arduino==0)  && (contaarduino>=3)){	
+                arduino = 1;
+                $.ajax({
+              
+                	
+               	
+                url: "http://10.0." + ip + "." + ip2 + "/arduino_pantalla.php",
+                cache: false,
+                async: true,
+                timeout: 3000,
+                success: function(html2){ 
+                	arduino=0;
+                	contaarduino = 0;
+                
+                }
+                
+                });
+                } else {
+                	contaarduino++;
+                }
+                
+                
+               
+      
+      
+      	if (contaposicion>10) {
+                		wait_posicion = 0;
+                		contaposicion = 0;
+                	}
+      
+      
+         if (((wait_posicion == 0)  && (contaposicion>=1)) ||(alerta == 1))      {
+         	 wait_posicion = 1;
+         	 contaposicion=0;
+         	
+                
+               
+            $.ajax({
+                url: "http://10.0." + ip + "." + ip2 + "/PosicionLocal.php?posicion="+posicion+"&barra="+barra+"&origen=index",
+                cache: false,
+                async: true,
+                //timeout: 10000,
+                success: function(html){ 
+                	 wait_posicion = 0;
+                    
+                if (html_ant!="INICIO" && html!=html_ant) {
+                
+                
+                
+                }    
+                if (html =="VACIA" ) {
+                
+                $( "#ref1" ).empty();
+                $( "#canteo" ).empty();
+                $( "#canreal" ).empty();
+                $( "#ref2" ).empty();
+                	$( "#canteo2" ).empty();
+                	$( "#canreal2" ).empty();
+                $( "#ref3" ).empty();
+                	$( "#canteo3" ).empty();
+                	$( "#canreal3" ).empty();
+                
+                
+                
+                
+                
+                }    
+      
+                if (html_ant!="INICIO" && html!=html_ant) {
+                
+                
+                
+                }        
+                
+                
+               
+                if (html.substring(0,11)=="SIN CAMBIOS" || html.substring(0,1)=="I"  ||html!="") {
+                	//alert(html);
+                    var ciclos;
+                    ciclos = html.split("|");
+                    //alert (ciclos);
+                    
+                    referecia =  ciclos[9];
+                
+                barra_ant = barra;    
+                if (html.substring(0,1)=="I" ) barra = ciclos[0];
+                contaciclos_ant = contaciclos;
+                contaciclos = ciclos[1]*1;
+                
+                
+                
+                if ((html.substring(0,11)!="SIN CAMBIOS") && $( "#barra" ).html()!= html.substring(0,10)) { 
+               
+               
+               if (ciclos[9]=="") {
+               	
+               	 $.ajax({
+                url:    "php/OFsMaquinaCurso.php?posicion="+ $( "#posicion" ).html(),
+                cache: false,
+                async: true,
+                success: function(html){
+                }
+
+
+        });
+               	
+               	
+               	
+               }
+               
+                $( "#barra" ).empty();
+                $( "#referencia" ).empty();
+                $( "#descripcion" ).empty();
+                
+                $( "#cantidad" ).empty();
+                $( "#barra" ).append( ciclos[0]);
+                $( "#referencia" ).append( ciclos[9]);
+                 referencia = ciclos[9];
+                $.ajax({
+                url: "php/operarios.php?puesto="+posicion + "&referencia=" + referencia,
+                cache: false,
+                async: true,
+                success: function(html){
+                $("#operarios").empty();    
+                $( "#operarios" ).append( html);
+                if (html.length<15) {
+               
+        deshabilitar();
+        
+                } else {
+        habilitar();
+                }  
+                }
+                });
+                
+                
+                $( "#descripcion" ).append( ciclos[15]);
+                
+                $( "#cantidad" ).append( ciclos[16]);
+                    
+                 }   
+                 if (html.substring(0,11)!="SIN CAMBIOS") {   
+                    $( "#ref1" ).empty();
+                    $( "#canreal" ).empty();
+                    $( "#canteo" ).empty();
+                $( "#ref1" ).append(  ciclos[9]+ " CAV:" +ciclos[12]);
+                if (((barra==barra_ant) && (contaciclos>=contaciclos_ant)) ||barra!=barra_ant) {
+                
+                $( "#canteo" ).append( "CIC: " + ciclos[1]*1);
+                $( "#canteo" ).append( "<br>PEND: " + (ciclos[1]*1*ciclos[12] -  ciclos[2]*1 -ciclos[3]*1 ));
+                }
+                
+                $( "#canreal" ).append( "OK: <b style='color:blue'>" + ciclos[2]*1 + "</b>");
+                $( "#canreal" ).append( "<br>NOK:  <b style='color:red'>" + ciclos[3]*1 + "</b>");
+                
+                $( "#ref2" ).empty();
+                $( "#canteo2" ).empty();
+                $( "#canreal2" ).empty();
+                if (ciclos[10]!=""){
+                	$( "#ref2" ).append(  ciclos[10]+ " CAV:" +ciclos[13]);
+                	if (((barra==barra_ant) && (contaciclos>=contaciclos_ant)) ||barra!=barra_ant) {
+                	
+                	$( "#canteo2" ).append( "CIC: " + ciclos[1]*1);
+                	$( "#canteo2" ).append( "<br>PEND: " + (ciclos[1]*1*ciclos[13] -  ciclos[5]*1 -ciclos[6]*1 ));
+                	}
+                	
+                	$( "#canreal2" ).append( "OK: <b style='color:blue'>" + ciclos[5]*1 + "</b>");
+                	$( "#canreal2" ).append( "<br>NOK: <b style='color:red'>" + ciclos[6]*1 + "</b>");
+                }
+                
+                $( "#ref3" ).empty();
+                $( "#canteo3" ).empty();	
+                $( "#canreal3" ).empty();
+                if (ciclos[11]!=""){
+                	$( "#ref3" ).append(  ciclos[11] + " CAV:" +ciclos[14]);
+                	if (((barra==barra_ant) && (contaciclos>=contaciclos_ant)) ||barra!=barra_ant) {
+                	
+                	$( "#canteo3" ).append( "CIC: " + ciclos[1]*1);
+                	$( "#canteo3" ).append( "<br>PEND: " + (ciclos[1]*1*ciclos[14] -  ciclos[7]*1 -ciclos[8]*1 ));
+                	}
+                
+                	$( "#canreal3" ).append( "OK: <b style='color:blue'>" + ciclos[7]*1 + "</b>");
+                	$( "#canreal3" ).append( "<br>NOK: <b style='color:red' >"+ ciclos[8]*1 +"</b>");
+                }
+                 }
+               
+                if ((((alerta != 0)||(ciclos[4]*1>1)) && ( 0 != (ciclos[4]*1) ) ) ||(alerta == 1)) //&& ($('#leftbar').css("background-color")!="rgb(255, 255, 0)")
+                {
+                	
+					if (alerta != (ciclos[4]*1) ) {
+						alerta =(ciclos[4]*1); 
+					$("#header").css('background-color', 'yellow');
+    				$("#leftbar").css('background-color', 'yellow');
+    				$("#downbar").css('background-color', 'yellow');
+    				$("#datos").css('background-color', 'yellow');
+    				
+    			
+    				$.ajax({
+                url:   "php/datosIncidencia.php?barra="+ barra + "&of=" + barra +"&posicion=" + '<?php echo $_GET["posicion"];?>',
+                cache: false,
+                async: true,
+                success: function(html){
+                
+                if (html!=$("#info").html()){
+                	$("#info").empty( );
+                	$("#info").append( html);
+                	$("#header").css('background-color', 'yellow');
+    				$("#leftbar").css('background-color', 'yellow');
+    				$("#downbar").css('background-color', 'yellow');
+    				$("#datos").css('background-color', 'yellow');
+                } else {
+                	$("#header").css('background-color', 'lightgray');
+    				$("#leftbar").css('background-color', 'white');
+    				$("#downbar").css('background-color', 'lightgray');
+    				$("#datos").css('background-color', 'white');
+    				$("#info").empty();
+                }
+}
+    				});		
+    				
+				}
+				}
+				alerta = ciclos[4]*1; 
+				if (alerta==0) {
+					alerta = 0;
+					$("#header").css('background-color', 'lightgray');
+    				$("#leftbar").css('background-color', 'white');
+    				$("#downbar").css('background-color', 'lightgray');
+    				$("#datos").css('background-color', 'white');
+    				$("#info").empty();
+				
+				
+				}
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+                } else {
+                    if (primera_carga!=1) {
+                    $.ajax({
+                url:   "php/logout_puesto.php?puesto=" + <?php echo $_GET["posicion"];?>,
+                cache: false,
+                async: true,
+                success: function(html){
+                 $("#datos").html(pantalla_datos);
+                 
+}
+
+
+        });
+                    }
+                primera_carga = 0;
+                cadena_html = html.split("|");
+                referecia = cadena_html[2];
+                
+                barra_ant = barra;    
+                barra = cadena_html[1];
+                if (barra_ant != barra){
+                    if (html_ant!=html) contador = 0;
+                
+                    
+               
+                    entrada = new Date();
+                $("#referencia").empty();
+                
+                
+                cantidad = cadena_html[4];
+                hora_entrada = cadena_html[5];
+                
+                fecha_entrada = new Date().getFullYear() + "-" + (new Date().getMonth() + 1) + "-" + new Date().getDate() + " " + hora_entrada;
+                
+                max_permanencia = cadena_html[6]; 
+                
+               
+               
+                $( "#barra" ).empty();
+                $( "#referencia" ).empty();
+                $( "#descripcion" ).empty();
+                
+                $( "#cantidad" ).empty();
+                $( "#barra" ).append( cadena_html[1]);
+                $( "#referencia" ).append( cadena_html[2]);
+                $( "#descripcion" ).append( cadena_html[3]);
+                
+                $( "#cantidad" ).append( cadena_html[4]);
+                
+               
+           
+        }
+}
+html_ant = html;
+primera_carga = 1;
+                }
+                
+ });
+    } else {
+    	contaposicion++;
+    }
+    
+           if (hora_entrada!="") {
+               //alert(Math.floor((new Date().getTime() - new Date("2015-09-10 "+hora_entrada+":00").getTime())/1000));
+           }
+            new Date();
+            $( "#tiempo_max" ).empty();
+            tiempo = (Math.floor(ciclo*posiciones) - 60 -  Math.floor(((new Date().getTime() - new Date(fecha_entrada).getTime())/1000)));
+            //t_min = tiempo.getMinutes();
+            //t_sec = tiempo.getSeconds();
+            var t_min = "0" + Math.floor(tiempo / 60);
+            var t_sec = "0" + (tiempo - t_min * 60);
+            //return minutes.substr(-2) + ":" + seconds.substr(-2);
+            $( "#tiempo_max" ).append( "<H1>" + t_min.substr(-2) + ":"+ t_sec.substr(-2)  + "</H1>");//posiciones * ciclo ) -
+            //$( "#tiempo_max" ).append( "<H1>" +  new Date( "2015/09/10 " + hora_entrada ) + "</H1>");
+            $("#tiempo_insp").empty();
+            if (cantidad > 0){
+            	coperarios = operarios;
+            if (operarios==0) coperarios = 1;	
+            i_tiempo = (tiempo_insp_uni * cantidad / coperarios   -  Math.floor(((new Date().getTime() - entrada.getTime())/1000)));
+            var i_min =  "0" + Math.floor(i_tiempo / 60);
+            var i_sec =  "0" + (i_tiempo - i_min * 60);
+            if (i_tiempo>0) {
+                $("#tiempo_insp").append( "<H1>"  + i_min.substr(-2) + ":"+ i_sec.substr(-2)  + "</H1>");//t_min.substr(-2) + ":"+ t_sec.substr(-2)
+            } else {
+                $("#tiempo_insp").append( "<H1>SUP.</H1>");
+            }
+        }
+ 
+
+    }
+}
+   
+   
+   
+    function deshabilitar(){
+        
+    // alert("disable");
+     // Disable #x
+    //$( "#x" ).prop( "disabled", true );
+    $( "#NOK" ).addClass('mobile-button-disabled');
+        //$( "#partes" ).prop( "disabled", false );
+        $( "#NOK" ).button( "option", "disabled", true );
+         $( "#ETIQUETA" ).addClass('mobile-button-disabled');
+        //$( "#partes" ).prop( "disabled", false );
+        $( "#ETIQUETA" ).button( "option", "disabled", true );
+         $( "#PI" ).addClass('mobile-button-disabled');
+        //$( "#partes" ).prop( "disabled", false );
+        $( "#PI" ).button( "option", "disabled", true );
+         $( "#PE" ).addClass('mobile-button-disabled');
+        //$( "#partes" ).prop( "disabled", false );
+        $( "#PE" ).button( "option", "disabled", true );
+         $( "#INCIDENCIAS" ).addClass('mobile-button-disabled');
+        //$( "#partes" ).prop( "disabled", false );
+        $( "#INCIDENCIAS" ).button( "option", "disabled", true );
+         $( "#OFS" ).addClass('mobile-button-disabled');
+        //$( "#partes" ).prop( "disabled", false );
+        $( "#OFS" ).button( "option", "disabled", true );
+         $( "#QA" ).addClass('mobile-button-disabled');
+        //$( "#partes" ).prop( "disabled", false );
+        $( "#QA" ).button( "option", "disabled", true );
+         $( "#LL" ).addClass('mobile-button-disabled');
+        //$( "#partes" ).prop( "disabled", false );
+        $( "#LL" ).button( "option", "disabled", true );
+        $( "#NOK" ).prop( "disabled", true );
+         $( "#LOGOUT" ).addClass('mobile-button-disabled');
+        //$( "#partes" ).prop( "disabled", false );
+        $( "#LOGOUT" ).button( "option", "disabled", true );
+        $( "#LOGOUT" ).prop( "disabled", true );
+        $( "#PI" ).prop( "disabled", true );
+        $( "#PE" ).prop( "disabled", true );
+        $( "#QA" ).prop( "disabled", true );
+        $( "#LL" ).prop( "disabled", true );
+        $( "#INCIDENCIAS" ).prop( "disabled", true );
+        $( "#ETIQUETA" ).prop( "disabled", true );
+        $( "#OFS" ).prop( "disabled", true );
+        
+        $("#datos").empty();
+        
+                
+          
+      //alert("DES");
+        
+    }
+    
+    function habilitar(){
+      //  alert("enable");
+        // Enable #x
+        //$( "#x" ).prop( "disabled", false );
+        //$( "#partes" ).removeClass('ui-state-disabled');
+        if (operarios>0){
+        $( "#NOK" ).removeClass('mobile-button-disabled');
+        //$( "#partes" ).prop( "disabled", false );
+        $( "#NOK" ).button( "option", "disabled", false );
+         $( "#ETIQUETA" ).removeClass('mobile-button-disabled');
+        //$( "#partes" ).prop( "disabled", false );
+        $( "#ETIQUETA" ).button( "option", "disabled", false );
+        }
+         $( "#PI" ).removeClass('mobile-button-disabled');
+        //$( "#partes" ).prop( "disabled", false );
+        $( "#PI" ).button( "option", "disabled", false );
+         $( "#PE" ).removeClass('mobile-button-disabled');
+        //$( "#partes" ).prop( "disabled", false );
+        $( "#PE" ).button( "option", "disabled", false );
+         $( "#QA" ).removeClass('mobile-button-disabled');
+        //$( "#partes" ).prop( "disabled", false );
+        $( "#QA" ).button( "option", "disabled", false );
+         $( "#LL" ).removeClass('mobile-button-disabled');
+        //$( "#partes" ).prop( "disabled", false );
+        $( "#LL" ).button( "option", "disabled", false );
+         $( "#INCIDENCIAS" ).removeClass('mobile-button-disabled');
+        //$( "#partes" ).prop( "disabled", false );
+        $( "#INCIDENCIAS" ).button( "option", "disabled", false );
+         $( "#OFS" ).removeClass('mobile-button-disabled');
+        //$( "#partes" ).prop( "disabled", false );
+        $( "#OFS" ).button( "option", "disabled", false );
+        $( "#OFS" ).prop( "disabled", false );
+        $( "#LOGOUT" ).removeClass('mobile-button-disabled');
+        //$( "#partes" ).prop( "disabled", false );
+        $( "#LOGOUT" ).button( "option", "disabled", false );
+        $( "#LOGOUT" ).prop( "disabled", false );
+        $( "#NOK" ).prop( "disabled", false );
+        
+        $( "#PI" ).prop( "disabled", false );
+        $( "#PE" ).prop( "disabled", false );
+        $( "#QA" ).prop( "disabled", false );
+        $( "#LL" ).prop( "disabled", false );
+        $( "#ETIQUETAS" ).prop( "disabled", false );
+         $( "#INCIDENCIAS" ).prop( "disabled", false );
+         
+         
+        
+    }
+   
+   
+   
+   
+    
+    var pantalla_datos;
+    
+	
+	function oee(){
+	
+	   $.ajax({
+                url:   "php/oeePosicion.php?of=" + barra +"&puesto=" + '<?php echo $_GET["posicion"];?>',
+                cache: false,
+                async: false,
+                success: function(html){
+                $("#datos").html(html);
+                
+}
+     });
+	
+	
+	}
+	
+	
+	
+	
+    function login(){
+        
+     //pantalla_datos =    $("#datos").html();
+     $("#datos").empty();
+     $("#datos").css('text-width', '');
+           		$("#datos").css('text-align','');
+           		$("#datos").css('font-size','');
+           	
+           		$("#datos").css('background-color','white');
+     $("#datos").load("login.html");//.appendTo( ".ui-page" ).trigger( "create" );
+    escalar();
+    
+   
+        
+    }
+    
+    function user_login(){
+
+   // alert("php/login.php?operario="+document.forms["frmDatos"].elements["operario"].value + "&barra="+ barra + "&of=" + of +"&puesto=" + '<?php echo $_GET["posicion"];?>' );
+    
+   /* $.ajax({
+                url:   "php/actualiza_operarios_intermedio.php",
+                cache: false,
+                async: true,
+                success: function(html){
+                // $("#datos").empty();//html(pantalla_datos);
+                 
+}
+
+
+        
+            
+        });*/
+
+$.ajax({
+                url:   "php/login.php?operario="+document.getElementById("operario").value + "&barra="+ barra + "&of=" + barra +"&puesto=" + '<?php echo $_GET["posicion"];?>',
+                cache: false,
+                async: false,
+                success: function(html){
+                	
+                	if (html!="NO EXISTE OPERARIO.") {
+                 $("#datos").empty();//html(pantalla_datos);
+                  $.ajax({
+                url: "php/operarios.php?puesto="+posicion + "&referencia=" + referencia,
+                cache: false,
+                async: true,
+                success: function(html){
+                $("#operarios").empty();    
+                $( "#operarios" ).append( html);
+                 if (html.length<15) {
+                /*	$( "#pi" ).prop( "disabled", true );
+        $( "#pe" ).prop( "disabled", true );
+        $( "#qa" ).prop( "disabled", true );
+        $( "#logout" ).prop( "disabled", true );
+        $( "#etiqueta" ).prop( "disabled", true );*/
+        deshabilitar();
+        //alert("deshabilitar");
+                } else {/*
+                $( "#pi" ).prop( "disabled", false );
+        $( "#pe" ).prop( "disabled", false );
+        $( "#qa" ).prop( "disabled", false );
+        $( "#logout" ).prop( "disabled", false );
+        $( "#etiqueta" ).prop( "disabled", false );*/
+        habilitar();
+        qa();
+        //alert("habilitar");
+                }  
+                
+                }  
+                });
+                	} else {
+                		alert(html);
+                	}
+                 
+}
+
+
+        
+            
+        });
+        
+ /*operarios = operarios + 1;
+    
+    $("#operarios").empty();
+        
+                $( "#operarios" ).append("<H1>"+operarios+"</H1>");*/
+                
+          /*      $.ajax({
+                url: "php/operarios.php?puesto="+posicion + "&referencia=" + referencia,
+                cache: false,
+                async: true,
+                success: function(html){
+                $("#operarios").empty();    
+                $( "#operarios" ).append( html);
+                 if (html.length<15) {
+                
+        deshabilitar();
+        //alert("deshabilitar");
+                } else {
+        habilitar();
+        //alert("habilitar");
+                }  
+                
+                }  
+                });*/
+    
+}
+
+  function activar_of(fof){
+        
+  // alert(fof);
+     
+      //$( "#activar_of" ).addClass('mobile-button-disabled');
+        //$( "#partes" ).prop( "disabled", false );
+       // $( "#activar_of" ).button( "option", "disabled", true );
+     
+     $("#datos").empty();
+     $.ajax({
+                url:   "php/activar_of.php?of=" + fof +"&puesto=" + '<?php echo $_GET["posicion"];?>',
+                cache: false,
+                async: false,
+                success: function(html){
+                // $("#datos").html(pantalla_datos);
+                qa();
+}
+     });
+      $.ajax({
+                url:    "php/OFsMaquinaCurso.php?posicion="+ $( "#posicion" ).html(),
+                cache: false,
+                async: true,
+                success: function(html){
+               //  $("#datos").html(html);
+                }
+
+
+        });
+    
+        
+    }
+    
+    
+    
+      function generar_of(maquina){
+        
+  // alert(fof);
+ // $("#datos").empty();
+     
+     $.ajax({
+                url:   "php/generar_of.php?puesto=" + '<?php echo $_GET["posicion"];?>',
+                cache: false,
+                async: false,
+                success: function(html){
+                // $("#datos").html(pantalla_datos); 
+                $("#datos").empty();
+                $("#datos").html(html);
+}
+     });
+      $.ajax({
+                url:    "php/OFsMaquinaCurso.php?posicion="+ $( "#posicion" ).html(),
+                cache: false,
+                async: true,
+                success: function(html){
+               //  $("#datos").html(html);
+                }
+
+
+        });
+   
+        
+    }
+    
+    
+    function logout(){
+        
+    // pantalla_datos =    $("#datos").html();
+    // $("#datos").trigger('create');
+    $("#datos").empty();
+    $("#datos").load("logout.html" + "?puesto=" + '<?php echo $_GET["posicion"];?>').enhanceWithin();//.appendTo( ".ui-page" ).trigger( "create" );  
+     //$( "#datos" ).load(  "logout.html", { role: "content" } );
+
+    // escalar();
+    
+    $.ajax({
+                url: "php/operarios.php?puesto="+posicion + "&referencia=" + referencia,
+                cache: false,
+                async: true,
+                success: function(html){
+                $("#operarios").empty();    
+                $( "#operarios" ).append( html);
+                if (html.length<15) {
+                /*	$( "#pi" ).prop( "disabled", true );
+        $( "#pe" ).prop( "disabled", true );
+        $( "#qa" ).prop( "disabled", true );
+        $( "#logout" ).prop( "disabled", true );
+        $( "#etiqueta" ).prop( "disabled", true );*/
+        deshabilitar();
+        //alert("deshabilitar");
+                } else {/*
+                $( "#pi" ).prop( "disabled", false );
+        $( "#pe" ).prop( "disabled", false );
+        $( "#qa" ).prop( "disabled", false );
+        $( "#logout" ).prop( "disabled", false );
+        $( "#etiqueta" ).prop( "disabled", false );*/
+        habilitar();
+        //alert("habilitar");
+                }  
+                
+                }  
+                });
+        
+    }
+    
+        function user_logout(usuario){
+
+
+
+$.ajax({
+                url:   "php/logout.php?operario="+ usuario + "&puesto=" + '<?php echo $_GET["posicion"];?>',
+                cache: false,
+                async: false,
+                success: function(html){
+                 $("#datos").empty();//html(pantalla_datos);
+}
+
+
+        });
+       /* operarios = operarios - 1;
+    $("#operarios").empty();
+        
+                $( "#operarios" ).append("<H1>"+operarios+"</H1>");
+        */
+        
+        $.ajax({
+                url: "php/operarios.php?puesto="+posicion + "&referencia=" + referencia,
+                cache: false,
+                async: true,
+                success: function(html){
+                $("#operarios").empty();    
+                $( "#operarios" ).append( html);
+                if (html.length<15) {
+                /*	$( "#pi" ).prop( "disabled", true );
+        $( "#pe" ).prop( "disabled", true );
+        $( "#qa" ).prop( "disabled", true );
+        $( "#logout" ).prop( "disabled", true );
+        $( "#etiqueta" ).prop( "disabled", true );*/
+        deshabilitar();
+        //alert("deshabilitar");
+                } else {/*
+                $( "#pi" ).prop( "disabled", false );
+        $( "#pe" ).prop( "disabled", false );
+        $( "#qa" ).prop( "disabled", false );
+        $( "#logout" ).prop( "disabled", false );
+        $( "#etiqueta" ).prop( "disabled", false );*/
+        habilitar();
+        //alert("habilitar");
+                }  
+                
+                }  
+                });
+            
+    }
+    
+    //function incidencia(){
+    	function guardaincidencia( iof , iart , icod ) { 
+        // alert("PartesOld/partes_inspeccionar.html?orden="+ $( "#barra" ).html() + "&operario= " + posicion);
+       // alert("INDEX");
+       alerta = 1;
+     $.ajax({
+                url:   "php/incidencias.php?orden="+ barra + "&operario= " + posicion +"&referencia=" + iart + "&incidencia=" + icod,
+                cache: false,
+                async: true,
+                success: function(html){
+                 $("#datos").html(html);
+                 
+                
+}
+
+
+        });
+        
+    }
+            function partesnok( eof ,  ereferencia ){
+        
+         //if (ereferencia=="") ereferencia ="";
+       // if (eof=="") eof ="";
+     //   alert( eof + ereferencia);
+     
+     $.ajax({
+                url:   "PartesNok.php?orden="+barra+"&referencia="+ereferencia,
+                cache: false,
+                async: true,
+                success: function(html){
+                 $("#datos").html(html);
+                 
+                
+}
+
+
+        });
+        
+    }
+         function incidencias(  ){
+        
+         //if (ereferencia=="") ereferencia ="";
+       // if (eof=="") eof ="";
+     //   alert( eof + ereferencia);
+     $.ajax({
+                url:   "Incidencia.php?orden="+barra+"&referencia="+$( "#referencia" ).html()+"&maquina="+posicion+"&inicio="+inc_inicio+"&incidencia="+alerta,
+                cache: false,
+                async: true,
+                success: function(html){
+                 $("#datos").html(html);
+                 
+                
+}
+
+
+        });
+        
+    }
+    
+     function nok(eof , ereferencia , erechazo){
+      //  alert( eof +ereferencia + erechazo)
+      $("#datos").empty();
+     $.ajax({
+                url:   "php/ParteNok.php?orden="+ barra + "&rechazo=" + erechazo  +"&referencia=" + ereferencia,
+                cache: false,
+                async: true,
+                success: function(html){
+                 $("#datos").html(html);
+                 
+                
+}
+
+
+        });
+        
+    }
+    
+    
+    function inspecciona_barra_diferido(direccion_barra){
+        
+          $.ajax({
+                url:   direccion_barra,
+                cache: false,
+                async: true,
+                success: function(html){
+                 $("#datos").html(html);
+                 
+                
+}
+
+
+        });   
+        
+        
+    }
+    
+    function info(){
+        // alert("PartesOld/partes_inspeccionar.html?orden="+ $( "#barra" ).html() + "&operario= " + posicion);
+     /*$.ajax({
+                url:   "PartesOld/partes_inspeccionar_offline.html?orden="+ barra + "&operario= " + posicion,
+                cache: false,
+                async: true,
+                success: function(html){
+                 $("#datos").html(html);
+                 
+                
+}
+
+
+        });*/
+             $.ajax({
+                url:    "banner.html?referencia="+ $( "#referencia" ).html(),
+                cache: false,
+                async: true,
+                success: function(html){
+                 $("#datos").html(html);
+                 
+                
+}
+
+
+        });
+        escalar();
+    
+        
+    }
+    
+    
+        function reload(){
+        
+     location.reload();
+        
+    }
+    
+    function etiquetas_tr(){
+        
+    $.ajax({
+                url:   "php/EtiquetasTrazabilidad.php?orden="+barra+"&etiquetas="+cantidad+"&posicion="+posicion,
+                cache: false,
+                async: true,
+                success: function(html){
+                 //$("#datos").html(html);
+                 
+                
+}
+
+
+        }); 
+        
+    }
+     function etiquetas_caja(){
+        
+    $.ajax({
+                url:   "EtiquetasCaja.html?orden="+barra+"&etiquetas="+cantidad+"&posicion="+posicion,
+                cache: false,
+                async: true,
+                success: function(html){
+                 $("#datos").html(html);
+                 
+                
+}
+
+
+        }); 
+        
+    }
+    
+    function etiquetas_palet( ereferencia , etipo ){
+        
+    $.ajax({
+                url:   "EtiquetasPalet.html?orden="+barra+"&etiquetas="+cantidad+"&posicion="+posicion,
+                cache: false,
+                async: true,
+                success: function(html){
+                 $("#datos").html(html);
+                 
+                
+}
+
+
+        }); 
+        
+    }
+    
+    function etiquetas( ereferencia , etipo ){
+    	
+    /*	
+         eof =  $( "#barra" ).html();
+         epieza =   $( "#referencia" ).html();
+         ecantidad =   $( "#cantidad" ).html();
+         ecanreal =   $( "#canreal" ).html();
+         ecantro =   $( "#canteo" ).html();
+    	alert(eof);
+    	alert (ecantidad);
+    	
+    	alert (epieza);
+    	alert (ecanreal);
+    	alert (ecantro);*/
+    	
+    	
+    	
+        //if (ereferencia=="undefined")
+		ereferencia =  $( "#referencia" ).html();
+        if (etipo=="undefined") etipo ="";
+		etipo ="CAJA";
+		//alert(ereferencia + etipo);
+    $.ajax({
+                url:   "Etiquetas.php?orden="+ $( "#of" ).html()+"&etiquetas="+"1"+"&posicion="+posicion+"&referencia="+ereferencia+"&tipo="+etipo,
+                cache: false,
+                async: true,
+                success: function(html){
+                	 $("#datos").empty();
+                 $("#datos").html(html);
+                 
+                
+}
+
+
+        }); 
+		
+		
+		
+		
+		
+        escalar();
+    }
+    
+    function pi(){
+        
+             
+        $.ajax({
+                url:    "pi.html?referencia="+ $( "#referencia" ).html(),
+                cache: false,
+                async: true,
+                success: function(html){
+                 $("#datos").html(html);
+                 
+                
+}
+     });
+        escalar();
+    }
+
+    function it(){
+        
+             
+        $.ajax({
+                url:    "it.html?posicion="+posicion,
+                cache: false,
+                async: true,
+                success: function(html){
+                 $("#datos").html(html);
+                 
+                
+}
+     });
+        escalar();
+    }
+
+function detalleOF(){
+        
+             
+        $.ajax({
+                url:    "php/detalleOF.php?posicion="+ $( "#posicion" ).html()+"&of="+ $( "#barra" ).html(),
+                cache: false,
+                async: true,
+                success: function(html){
+                 $("#datos").html(html);
+                 
+                
+}  });
+        escalar();
+    }
+
+
+    function ofs(){
+        
+         $.ajax({
+                url:    "php/ofs.php?posicion="+ $( "#posicion" ).html()+"&orden="+ $( "#barra" ).html(),
+                cache: false,
+                async: true,
+                success: function(html){
+                 $("#datos").html(html);
+                 
+                $('#tabla').dataTable({    
+	 dom : 'frtip' , 
+	 paging:   true,
+        ordering: false,
+        info:     false,
+		pageLength: 10,
+		searching: false,
+		responsive: true,
+		lengthChange: false
+});
+}
+
+
+        });
+		/* $('#tabla').dataTable({
+		 'destroy': true,
+		 'bPaginate': true,
+        'searching' : false,
+		'pageLength': 5,
+		 });*/
+		 
+		 
+		 
+		 /*{    
+	 dom : 'Bfrtip' , 
+	 paging:   true,
+        ordering: false,
+        info:     false,
+		pageLength: 5,
+		searching: false,
+		responsive: true,
+		lengthChange: false
+} );*/
+
+//$('.dataTables_paginate').hide();
+       /*  $.ajax({
+                url:    "php/OFsMaquinaCurso.php?posicion="+ $( "#posicion" ).html(),
+                cache: false,
+                async: true,
+                success: function(html){
+               //  $("#datos").html(html);
+                }
+
+
+        });*/
+                 
+       
+        escalar();
+    }
+    
+      function qapi(){
+        
+             
+        $.ajax({
+                url:    "qapi.html?referencia="+ $( "#referencia" ).html(),
+                cache: false,
+                async: true,
+                success: function(html){
+                 $("#datos").html(html);
+                 
+                
+}
+
+
+        });
+        escalar();
+    }
+    
+        function pe(){
+        $.ajax({
+                url:   "pe.html?referencia="+ $( "#referencia" ).html(),
+                cache: false,
+                async: true,
+                success: function(html){
+                 $("#datos").html(html);
+                 
+                
+}
+
+
+        });
+        escalar();
+     
+    }
+    
+     function qa(){
+        $.ajax({
+                url:   "qa.html?referencia="+ $( "#referencia" ).html(),
+                cache: false,
+                async: true,
+                success: function(html){
+                 $("#datos").html(html);
+                 
+                
+}
+    });
+        escalar();
+     
+    }
+    
+         function ll(){
+        $.ajax({
+                url:   "ll.html?referencia="+ $( "#referencia" ).html(),
+                cache: false,
+                async: true,
+                success: function(html){
+                 $("#datos").html(html);
+                 
+                
+}
+    });
+        escalar();
+     
+    }
+    
+     function layout(){
+        $.ajax({
+                url:   "layout.html?posicion="+ $( "#posicion" ).html(),
+                cache: false,
+                async: true,
+                success: function(html){
+                 $("#datos").html(html);
+                 
+                
+}
+
+
+
+        });
+        escalar();
+     
+    }
+    
+    function mc(){
+        $.ajax({
+                url:   "mc.html?referencia="+ $( "#referencia" ).html(),
+                cache: false,
+                async: true,
+                success: function(html){
+                 $("#datos").html(html);
+                 
+                
+}
+
+
+        });
+        escalar();
+     
+    }
+//$( "#frmDatos" ).trigger("create");
+        </script>
+        
+        
+        
+    </head>
+    <body style="overflow: hidden;">
+        <div data-role="page" id="main" class="screen" data-theme="a ">
+
+	<div data-role="header" style="bottom: 0px; data-position=; height:60px;  background-image: url(../images/logo_transparent1040.png) ;  background-size: 100px; background-position:99% 5px; background-repeat: no-repeat; background-color: lightgray" data-position="fixed" >
+            <div class="ui-grid-d" id="topbar">
+                 <div class="ui-block-a"   style="width: 20%;height:60px; vertical-align: middle;"  onClick="layout();">  
+					<div class="ui-block-a" id="posicion"  style="width: 100%;font-size: 150% ;height:30px; vertical-align: top;"  onClick="layout();">  </div>
+					<div class="ui-block-b" id="posicionD"  style="width: 100%;font-size: 150% ;height:60px; vertical-align: down;"  onClick="layout();">  </div>
+				 </div>
+                 <div class="ui-block-b" id="referencia"  style="width: 18%;font-size: 150% ;height:60px; vertical-align: middle;"   >  </div>    
+				<div class="ui-block-c"  style="width: 44%;height:60px; vertical-align: middle;" >
+					<div class="ui-block-a" id="descripcion"  style="width: 100%;font-size: 140% ;height:30px; vertical-align: top;"   ></div>
+					<div class="ui-block-b" id="of"  style="width: 100%;font-size: 140% ;height:30px; vertical-align: down;"   ></div>
+				</div>
+                 <div class="ui-block-d" id="cantidad"  style="width: 18%;font-size: 150% ;height:60px; vertical-align: middle;"  onClick="reload();" >  </div>
+                 <div class="ui-block-e" id="barra"  style="width: 0%;font-size: 150% ;height:60px; vertical-align: middle;"  >  </div>
+            </div> 
+	</div><!-- /header -->
+        <div  >
+            <div class="ui-grid-a" id="leftbar"  style="bottom: 50px;height:950px;" >
+	<div class="ui-block-a" id="menu" style="width: 140px ;  position: blocked;"> 
+            <div>
+            <center><input type="button" style="size: 100%" value="LOGIN" onClick="login();"></center>
+			<center><input type="button" style="size: 100%" id="OEE" name ="OEE" value="OEE" onClick="oee();"></center>
+        <center><input type="button" style="size: 100%" id="OFS" name ="OFS" value="O.F.s" onClick="ofs();"></center>
+<center><input type="button" style="size: 100%" id="NOK" name ="NOK" value="PIEZA NOK" onClick="partesnok('','');"></center>
+<center><input type="button" style="size: 100%"  id="INCIDENCIAS" name ="INCIDENCIAS" value="INCIDENCIAS" onClick="incidencias();"></center>
+           <!-- <center><input type="button" style="size: 100%" value="INFO" onClick="info();"></center>-->
+            <center><input type="button" style="size: 100%" id="PI" name ="PI" value="P.I." onClick="pi();"></center>
+            <center><input type="button" style="size: 100%" id="PE" name ="PE" value="P.E." onClick="pe();"></center>
+            
+            <center><input type="button" style="size: 100%; width: 50%;" id="QA" name ="QA" value="Q.A." onClick="qa();"></center>
+            <center><input type="button" style="size: 100%; width: 50%;" id="LL" name ="LL" value="L.L." onClick="ll();"></center>
+            
+            <!--<center><input type="button" style="size: 100%" value="M.C." onClick="mc();"></center>-->
+            
+            <center><input type="button" style="size: 100%"  id="ETIQUETA" name ="ETIQUETA" value="ETIQUETA" onClick="etiquetas();"></center> 
+            <!--<center><input type="button" style="size: 100%" value="ET. PALET." onClick="etiqueta_palet();"></center>-->
+            
+            <center><input type="button" style="size: 100%" id="LOGOUT" name = "LOGOUT" value="LOGOUT" onClick="logout();"></center>
+            <!--<center><input type="button" id="RELOAD" style="size: 100%" value="RELOAD" onClick="reload();" enabled></center>-->
+            
+            </div>
+            <div id="operarios">
+                
+                </div>
+        </div>
+                
+                
+	<div class="ui-block-b" id="datos"  data-role="content" style="width: 1195px;  " >
+		
+		
+	
+		
+	</div> <!--1780px;">height: 98%x; position: blocked;</div>-->
+</div><!-- /grid-a -->
+            
+            
+      
+           
+        </div>
+        <div data-role="footer" data-position="fixed" style="bottom: 0px; height:50px; ">
+             <div class="ui-grid-c" id ="downbar">
+                 <div class="ui-block-a" id="hora" style="width: 15% "> 
+		<h1>  </h1>
+                 </div>
+                 <div class="ui-block-b" id="arduino" style="width: 0%; vertical-align: middle;"> 
+	
+                 </div>
+                 <div class="ui-block-b" id="toperarios" style="width: 5%; vertical-align: middle;"> 
+		<h1>  </h1>
+                 </div>
+                 <div class="ui-block-b" id="it" style="width: 5%; vertical-align: middle;"  onClick="it();"> 
+		<img src='../images/info_button_32.png'>
+                 </div>
+                  <div class="ui-block-c" id="info" style="width: 35% ;font-size: 150% ;height:50px; vertical-align: middle;">
+                      <h1><center>.</center></h1>
+                 </div>
+                 <div class="ui-block-b" id="pendiente" style="width: 40% ;font-size:75% ;vertical-align: top; horizontal-align: middle;"> 
+		
+                 
+                  <div class="ui-grid-b" id ="downbar1">
+                  	
+                 <div class="ui-block-a"  style="width: 33% ; vertical-align: middle; horizontal-align: middle;"> 
+                 
+                  <div class="ui-grid-a" id ="downbara">
+                  	<div class="ui-block-a" id="ref1" style="width: 100% ; vertical-align: middle; horizontal-align: middle;"> 
+		
+                 </div>
+                 <div class="ui-block-a" id="canreal" style="width: 50% ; vertical-align: middle; horizontal-align: middle;"> 
+		
+                 </div>
+                 <div class="ui-block-b" id="canteo" style="width: 50%; vertical-align: middle;"> 
+	
+                 </div>
+                 </div>
+                 </div>
+                 <div class="ui-block-b"  style="width: 33% ;  horizontal-align: middle;"> 
+                 
+                  <div class="ui-grid-a" id ="downbara">
+                  	<div class="ui-block-a" id="ref2" style="width: 100% ;  horizontal-align: middle;"> 
+		
+                 </div>
+                 <div class="ui-block-a" id="canreal2" style="width: 50% ;horizontal-align: middle;"> 
+	
+                 </div>
+                 <div class="ui-block-b" id="canteo2" style="width: 50%; "> 
+		
+                 </div>
+                 </div>
+                 </div>
+                 
+                 <div class="ui-block-c"  style="width: 33% ;  horizontal-align: middle;"> 
+                 
+	
+                 
+                  <div class="ui-grid-a" id ="downbara">
+                  	<div class="ui-block-a" id="ref3" style="width: 100% ;horizontal-align: middle;"> 
+                  	</div>
+                 <div class="ui-block-a" id="canreal3" style="width: 50% ; horizontal-align: middle;"> 
+		
+                 </div>
+                 <div class="ui-block-b" id="canteo3" style="width: 50%;"> 
+	
+                 </div>
+                 </div>
+                 </div>
+                 
+                 </div>
+                 </div>
+	</div><!-- /footer -->
+</div><!-- /page -->
+
+    </body>
+    <script> 
+         $( "#posicion" ).empty();
+         
+        $( "#posicion" ).append( posicion );
+        escalar();
+       // tid=setInterval(refresco(),10000);
+      // $(document).ready(tid=setInterval(refresco(),10000));
+    </script>
+</html>
+  

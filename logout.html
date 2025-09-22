@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<!--
+To change this license header, choose License Headers in Project Properties.
+To change this template file, choose Tools | Templates
+and open the template in the editor.
+
+<link rel="stylesheet" href="http://code.jquery.com/mobile/1.2.0/jquery.mobile-1.2.0.min.css" />
+	<script src="http://code.jquery.com/jquery-1.8.2.min.js"></script>
+	<script src="http://code.jquery.com/mobile/1.2.0/jquery.mobile-1.2.0.min.js"></script>-->
+
+	
+		<form  id="frmDatos" name="frmDatos" >
+<BR>
+<H1><center>LOGOUT OPERARIO</center></H1>
+
+<BR>
+
+
+<?php
+
+
+
+$dsn="SAGE"; 
+$usuario="sa"; 
+$password="admin000"; 
+$cid=odbc_connect($dsn,$usuario,$password); 
+if (!$cid){ 
+    exit("Ya ocurrido un error tratando de conectarse con el origen de datos."); 
+}     
+
+$puesto = $_GET["puesto"];
+//$cara = $_GET["cara"];
+$cara = "";
+$equipo = "";
+$fecha = date("Ymd");
+$hora = date("H:i:s");
+
+
+$sqlope = "select distinct o.operario , nombreoperario from operarios o , khitt_loginoperarios lo where o.operario = lo.operario and fechafin is null   and centrotrabajo = '$puesto' order by nombreoperario";//and opeffin = '00:00:00'
+
+//echo $sqlope;
+$result=odbc_exec($cid,$sqlope)  or die(exit("Error en mysql_query")); 
+
+//while ($row=mysql_fetch_row($resultope))
+ while (odbc_fetch_row($result)) {
+//echo $i;
+$operario = odbc_result($result,"operario");
+                $nombre = trim(odbc_result($result,"nombreoperario"));
+
+echo '<H1><center><input type="button" class="ui-btn ui-input-btn ui-corner-all ui-shadow" style="size: 100%" data-inline="true" value="'.$operario.' - '.$nombre.'" id="logout" onClick="user_logout('.$operario.');"></center></H1>';
+
+
+
+
+
+}
+
+?>
+</form>
+
+	

@@ -1,0 +1,10 @@
+{
+  "pages": {
+    "/api/scada/production/historical/route": [
+      "static/chunks/3375723d4b9842e0.js",
+      "static/chunks/89af9aacef938916.js",
+      "static/chunks/d9d3973750f14265.js",
+      "static/chunks/turbopack-78783db36974b85c.js"
+    ]
+  }
+}
