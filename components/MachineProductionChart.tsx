@@ -44,6 +44,7 @@ interface MachineProductionChartProps {
   data: ProductionData[];
   onMachineClick?: (machineId: string) => void;
   className?: string;
+  highlightMachine?: string;
 }
 
 type ChartType = 'bar' | 'doughnut' | 'line';
@@ -51,7 +52,8 @@ type ChartType = 'bar' | 'doughnut' | 'line';
 export default function MachineProductionChart({
   data,
   onMachineClick,
-  className = ''
+  className = '',
+  highlightMachine
 }: MachineProductionChartProps) {
   const [chartType, setChartType] = useState<ChartType>('bar');
   const [selectedMetric, setSelectedMetric] = useState<'ok' | 'nok' | 'rw' | 'efficiency'>('ok');
@@ -173,7 +175,13 @@ export default function MachineProductionChart({
               '#28a745', '#dc3545', '#ffc107', '#007bff',
               '#17a2b8', '#fd7e14', '#e83e8c', '#6f42c1'
             ]
-          : getMetricColor(selectedMetric),
+          : machineNames.map((_, index) => {
+              const machine = machines[index];
+              if (highlightMachine && machine && machine.machineId === highlightMachine) {
+                return '#ff6b35'; // Cor destacada para a máquina atual
+              }
+              return getMetricColor(selectedMetric);
+            }),
         borderColor: chartType === 'line' ? getMetricColor(selectedMetric) : '#fff',
         borderWidth: chartType === 'line' ? 2 : 1,
         fill: chartType === 'line',
