@@ -27,6 +27,7 @@ export async function getProductCost(cod_producto: string): Promise<number> {
 
   } catch (error) {
     console.error(`❌ Error obteniendo costo para ${cod_producto}:`, error);
+    console.warn('⚠️ Usando costo por defecto debido a error de conexión');
     return 0; // Fallback a valor por defecto
   }
 }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { MachineStatus } from '../../types/machine';
 import MachineDetailModal from '../../components/MachineDetailModal';
+import { useUser } from '../../hooks/useUser';
 
 // Custom hook para manejar el tema
 function useThemeSwitcher() {
@@ -42,6 +43,9 @@ export default function Dashboard() {
 
   // Usar el hook del theme switcher
   const { currentTheme } = useThemeSwitcher();
+
+  // Usar el hook del usuario
+  const { user } = useUser();
 
   // Mostrar información del tema actual en consola
   useEffect(() => {
@@ -263,10 +267,10 @@ export default function Dashboard() {
       <div className="sidebar-wrapper" data-simplebar="true">
         <div className="sidebar-header">
           <div className="">
-            <img src="assets/images/logo-icon.png" className="logo-icon-2" alt="" />
+            <img src="/images/Logo-KH-sin-fondo.png" className="logo-icon-2" alt="KH" />
           </div>
           <div>
-            <h4 className="logo-text">Sistema SCADA</h4>
+            <h4 className="logo-text">SCADA</h4>
           </div>
           <a href="javascript:;" className="toggle-btn ms-auto">
             <i className="bx bx-menu"></i>
@@ -374,14 +378,14 @@ export default function Dashboard() {
                 <a className="nav-link dropdown-toggle dropdown-toggle-nocaret" href="javascript:;" data-bs-toggle="dropdown">
                   <div className="d-flex user-box align-items-center">
                     <div className="user-info">
-                      <p className="user-name mb-0">Operador SCADA</p>
-                      <p className="designattion mb-0">En línea</p>
+                      <p className="user-name mb-0">{user.nombre} {user.apellido}</p>
+                      <p className="designattion mb-0">{user.funcion}</p>
                     </div>
-                    <img src="assets/images/avatars/avatar-1.png" className="user-img" alt="user avatar" />
+                    <img src={user.foto} className="user-img" alt="user avatar" />
                   </div>
                 </a>
                 <div className="dropdown-menu dropdown-menu-end">
-                  <a className="dropdown-item" href="javascript:;">
+                  <a className="dropdown-item" href="/perfil">
                     <i className="bx bx-user"></i><span>Perfil</span>
                   </a>
                   <a className="dropdown-item" href="javascript:;">

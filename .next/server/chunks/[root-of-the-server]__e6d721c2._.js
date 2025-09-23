@@ -733,6 +733,7 @@ async function getProductCost(cod_producto) {
         return 0;
     } catch (error) {
         console.error(`❌ Error obteniendo costo para ${cod_producto}:`, error);
+        console.warn('⚠️ Usando costo por defecto debido a error de conexión');
         return 0; // Fallback a valor por defecto
     }
 }
@@ -1055,7 +1056,12 @@ async function getCurrentMachinesData() {
       AND cm.Cod_maquina != '--'
     ORDER BY cm.Cod_maquina
   `;
-    return await (0, __TURBOPACK__imported__module__$5b$project$5d2f$Downloads$2f$mrpii__2$2f$lib$2f$database$2f$connection$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["executeQuery"])(sql);
+    try {
+        return await (0, __TURBOPACK__imported__module__$5b$project$5d2f$Downloads$2f$mrpii__2$2f$lib$2f$database$2f$connection$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["executeQuery"])(sql, undefined, 'mapex');
+    } catch (error) {
+        console.warn('⚠️ Error al obtener datos de productos - retornando datos vacíos');
+        return [];
+    }
 }
 async function generateMachineInsights(machine) {
     // Obtener paradas del turno actual

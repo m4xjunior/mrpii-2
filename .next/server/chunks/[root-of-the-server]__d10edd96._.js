@@ -923,9 +923,9 @@ async function getParosData(machineId) {
       ORDER BY hof.fecha_ini DESC
     `;
         const ofs = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$Downloads$2f$mrpii__2$2f$lib$2f$database$2f$connection$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["executeQuery"])(sql_ofs, undefined, 'mapex');
-        // Obtener paros con filtros (últimos 7 días por defecto)
+        // Obtener paros con filtros (últimos 30 días por defecto)
         const sql_paros = `
-      SELECT TOP 50
+      SELECT
         hpp.fecha_ini,
         hpp.fecha_fin,
         DATEDIFF(MINUTE, hpp.fecha_ini, hpp.fecha_fin) as duracion_minutos,
@@ -942,7 +942,7 @@ async function getParosData(machineId) {
       INNER JOIN his_of hof ON hf.id_his_of = hof.id_his_of
       LEFT JOIN his_paro_obs hpo ON hpo.his_paro = hpp.his_paro
       WHERE cm.Cod_maquina = '${machineId}'
-      AND hpp.fecha_ini >= DATEADD(day, -7, GETDATE())
+      AND hpp.fecha_ini >= DATEADD(day, -30, GETDATE())
       ORDER BY hpp.fecha_ini DESC
     `;
         const paros = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$Downloads$2f$mrpii__2$2f$lib$2f$database$2f$connection$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["executeQuery"])(sql_paros, undefined, 'mapex');
@@ -1014,7 +1014,12 @@ async function getProduccionData(machineId) {
       AND hp.fecha >= DATEADD(day, -30, GETDATE())
     ORDER BY hp.fecha DESC, hp.turno DESC
   `;
-    return await (0, __TURBOPACK__imported__module__$5b$project$5d2f$Downloads$2f$mrpii__2$2f$lib$2f$database$2f$connection$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["executeQuery"])(sql);
+    try {
+        return await (0, __TURBOPACK__imported__module__$5b$project$5d2f$Downloads$2f$mrpii__2$2f$lib$2f$database$2f$connection$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["executeQuery"])(sql, undefined, 'mapex');
+    } catch (error) {
+        console.warn('⚠️ Error al obtener datos - retornando datos vacíos');
+        return [];
+    }
 }
 async function getOEEData(machineId) {
     const sql = `
@@ -1027,20 +1032,30 @@ async function getOEEData(machineId) {
       AND fecha >= DATEADD(day, -30, GETDATE())
     ORDER BY fecha DESC, turno DESC
   `;
-    return await (0, __TURBOPACK__imported__module__$5b$project$5d2f$Downloads$2f$mrpii__2$2f$lib$2f$database$2f$connection$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["executeQuery"])(sql);
+    try {
+        return await (0, __TURBOPACK__imported__module__$5b$project$5d2f$Downloads$2f$mrpii__2$2f$lib$2f$database$2f$connection$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["executeQuery"])(sql, undefined, 'mapex');
+    } catch (error) {
+        console.warn('⚠️ Error al obtener datos - retornando datos vacíos');
+        return [];
+    }
 }
 async function getPedidosData(machineId) {
-    const sql = `
-    SELECT TOP 20
-      p.cod_pedido, p.desc_producto, p.cantidad_pedido, p.cantidad_entregada,
-      p.fecha_pedido, p.fecha_entrega_prevista, p.estado_pedido
-    FROM pedidos p
-    INNER JOIN cfg_maquina cm ON p.id_maquina = cm.id_maquina
-    WHERE cm.Cod_maquina = '${machineId}'
-      AND p.fecha_pedido >= DATEADD(day, -60, GETDATE())
-    ORDER BY p.fecha_pedido DESC
-  `;
-    return await (0, __TURBOPACK__imported__module__$5b$project$5d2f$Downloads$2f$mrpii__2$2f$lib$2f$database$2f$connection$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["executeQuery"])(sql);
+    try {
+        const sql = `
+      SELECT TOP 20
+        p.cod_pedido, p.desc_producto, p.cantidad_pedido, p.cantidad_entregada,
+        p.fecha_pedido, p.fecha_entrega_prevista, p.estado_pedido
+      FROM pedidos p
+      INNER JOIN cfg_maquina cm ON p.id_maquina = cm.id_maquina
+      WHERE cm.Cod_maquina = '${machineId}'
+        AND p.fecha_pedido >= DATEADD(day, -60, GETDATE())
+      ORDER BY p.fecha_pedido DESC
+    `;
+        return await (0, __TURBOPACK__imported__module__$5b$project$5d2f$Downloads$2f$mrpii__2$2f$lib$2f$database$2f$connection$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["executeQuery"])(sql, undefined, 'sage');
+    } catch (error) {
+        console.warn('⚠️ Banco SAGE não disponível para pedidos - retornando dados vazios');
+        return [];
+    }
 }
 async function getHistoricoData(machineId) {
     const sql = `
@@ -1059,20 +1074,30 @@ async function getHistoricoData(machineId) {
     GROUP BY CAST(hp.fecha AS DATE)
     ORDER BY fecha DESC
   `;
-    return await (0, __TURBOPACK__imported__module__$5b$project$5d2f$Downloads$2f$mrpii__2$2f$lib$2f$database$2f$connection$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["executeQuery"])(sql);
+    try {
+        return await (0, __TURBOPACK__imported__module__$5b$project$5d2f$Downloads$2f$mrpii__2$2f$lib$2f$database$2f$connection$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["executeQuery"])(sql, undefined, 'mapex');
+    } catch (error) {
+        console.warn('⚠️ Error al obtener datos - retornando datos vacíos');
+        return [];
+    }
 }
 async function getVentasData(machineId) {
-    const sql = `
-    SELECT TOP 20
-      v.cod_venta, v.cliente, v.producto, v.cantidad, v.valor_venta,
-      v.fecha_venta, v.estado_entrega
-    FROM ventas v
-    INNER JOIN cfg_maquina cm ON v.id_maquina = cm.id_maquina
-    WHERE cm.Cod_maquina = '${machineId}'
-      AND v.fecha_venta >= DATEADD(day, -90, GETDATE())
-    ORDER BY v.fecha_venta DESC
-  `;
-    return await (0, __TURBOPACK__imported__module__$5b$project$5d2f$Downloads$2f$mrpii__2$2f$lib$2f$database$2f$connection$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["executeQuery"])(sql);
+    try {
+        const sql = `
+      SELECT TOP 20
+        v.cod_venta, v.cliente, v.producto, v.cantidad, v.valor_venta,
+        v.fecha_venta, v.estado_entrega
+      FROM ventas v
+      INNER JOIN cfg_maquina cm ON v.id_maquina = cm.id_maquina
+      WHERE cm.Cod_maquina = '${machineId}'
+        AND v.fecha_venta >= DATEADD(day, -90, GETDATE())
+      ORDER BY v.fecha_venta DESC
+    `;
+        return await (0, __TURBOPACK__imported__module__$5b$project$5d2f$Downloads$2f$mrpii__2$2f$lib$2f$database$2f$connection$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["executeQuery"])(sql, undefined, 'sage');
+    } catch (error) {
+        console.warn('⚠️ Banco SAGE não disponível para vendas - retornando dados vazios');
+        return [];
+    }
 }
 }),
 ];

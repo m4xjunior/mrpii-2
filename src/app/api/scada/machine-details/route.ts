@@ -250,9 +250,9 @@ async function getParosData(machineId: string) {
     `;
     const ofs = await executeQuery(sql_ofs, undefined, 'mapex');
 
-    // Obtener paros con filtros (últimos 7 días por defecto)
+    // Obtener paros con filtros (últimos 30 días por defecto)
     const sql_paros = `
-      SELECT TOP 50
+      SELECT
         hpp.fecha_ini,
         hpp.fecha_fin,
         DATEDIFF(MINUTE, hpp.fecha_ini, hpp.fecha_fin) as duracion_minutos,
@@ -269,7 +269,7 @@ async function getParosData(machineId: string) {
       INNER JOIN his_of hof ON hf.id_his_of = hof.id_his_of
       LEFT JOIN his_paro_obs hpo ON hpo.his_paro = hpp.his_paro
       WHERE cm.Cod_maquina = '${machineId}'
-      AND hpp.fecha_ini >= DATEADD(day, -7, GETDATE())
+      AND hpp.fecha_ini >= DATEADD(day, -30, GETDATE())
       ORDER BY hpp.fecha_ini DESC
     `;
 
@@ -334,7 +334,12 @@ async function getProduccionData(machineId: string) {
     ORDER BY hp.fecha DESC, hp.turno DESC
   `;
 
-  return await executeQuery(sql);
+  try {
+    return await executeQuery(sql, undefined, 'mapex');
+  } catch (error) {
+    console.warn('⚠️ Error al obtener datos - retornando datos vacíos');
+    return [];
+  }
 }
 
 async function getOEEData(machineId: string) {
@@ -349,22 +354,32 @@ async function getOEEData(machineId: string) {
     ORDER BY fecha DESC, turno DESC
   `;
 
-  return await executeQuery(sql);
+  try {
+    return await executeQuery(sql, undefined, 'mapex');
+  } catch (error) {
+    console.warn('⚠️ Error al obtener datos - retornando datos vacíos');
+    return [];
+  }
 }
 
 async function getPedidosData(machineId: string) {
-  const sql = `
-    SELECT TOP 20
-      p.cod_pedido, p.desc_producto, p.cantidad_pedido, p.cantidad_entregada,
-      p.fecha_pedido, p.fecha_entrega_prevista, p.estado_pedido
-    FROM pedidos p
-    INNER JOIN cfg_maquina cm ON p.id_maquina = cm.id_maquina
-    WHERE cm.Cod_maquina = '${machineId}'
-      AND p.fecha_pedido >= DATEADD(day, -60, GETDATE())
-    ORDER BY p.fecha_pedido DESC
-  `;
+  try {
+    const sql = `
+      SELECT TOP 20
+        p.cod_pedido, p.desc_producto, p.cantidad_pedido, p.cantidad_entregada,
+        p.fecha_pedido, p.fecha_entrega_prevista, p.estado_pedido
+      FROM pedidos p
+      INNER JOIN cfg_maquina cm ON p.id_maquina = cm.id_maquina
+      WHERE cm.Cod_maquina = '${machineId}'
+        AND p.fecha_pedido >= DATEADD(day, -60, GETDATE())
+      ORDER BY p.fecha_pedido DESC
+    `;
 
-  return await executeQuery(sql);
+    return await executeQuery(sql, undefined, 'sage');
+  } catch (error) {
+    console.warn('⚠️ Banco SAGE não disponível para pedidos - retornando dados vazios');
+    return [];
+  }
 }
 
 async function getHistoricoData(machineId: string) {
@@ -385,20 +400,30 @@ async function getHistoricoData(machineId: string) {
     ORDER BY fecha DESC
   `;
 
-  return await executeQuery(sql);
+  try {
+    return await executeQuery(sql, undefined, 'mapex');
+  } catch (error) {
+    console.warn('⚠️ Error al obtener datos - retornando datos vacíos');
+    return [];
+  }
 }
 
 async function getVentasData(machineId: string) {
-  const sql = `
-    SELECT TOP 20
-      v.cod_venta, v.cliente, v.producto, v.cantidad, v.valor_venta,
-      v.fecha_venta, v.estado_entrega
-    FROM ventas v
-    INNER JOIN cfg_maquina cm ON v.id_maquina = cm.id_maquina
-    WHERE cm.Cod_maquina = '${machineId}'
-      AND v.fecha_venta >= DATEADD(day, -90, GETDATE())
-    ORDER BY v.fecha_venta DESC
-  `;
+  try {
+    const sql = `
+      SELECT TOP 20
+        v.cod_venta, v.cliente, v.producto, v.cantidad, v.valor_venta,
+        v.fecha_venta, v.estado_entrega
+      FROM ventas v
+      INNER JOIN cfg_maquina cm ON v.id_maquina = cm.id_maquina
+      WHERE cm.Cod_maquina = '${machineId}'
+        AND v.fecha_venta >= DATEADD(day, -90, GETDATE())
+      ORDER BY v.fecha_venta DESC
+    `;
 
-  return await executeQuery(sql);
+    return await executeQuery(sql, undefined, 'sage');
+  } catch (error) {
+    console.warn('⚠️ Banco SAGE não disponível para vendas - retornando dados vazios');
+    return [];
+  }
 }

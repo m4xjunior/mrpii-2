@@ -457,6 +457,7 @@ async function getProductCost(cod_producto) {
         return 0;
     } catch (error) {
         console.error(`❌ Error obteniendo costo para ${cod_producto}:`, error);
+        console.warn('⚠️ Usando costo por defecto debido a error de conexión');
         return 0; // Fallback a valor por defecto
     }
 }
@@ -713,49 +714,12 @@ async function GET(request) {
                 prioridad: 'INFO'
             });
         }
-        // Obtener datos adicionales necesarios para los gráficos
-        let oeeHistory = [];
-        let costAnalysis = [];
-        let operatorMetrics = [];
-        try {
-            // Intentar obtener datos de OEE histórico
-            oeeHistory = await calculateHistoricalOEE(machineId, days, 'day');
-            console.log(`📊 Datos OEE histórico: ${oeeHistory.length} registros`);
-        } catch (oeeError) {
-            console.warn('⚠️ Error al obtener OEE histórico:', oeeError);
-            oeeHistory = [];
-        }
-        try {
-            // Intentar obtener análisis de costos
-            costAnalysis = await getCostAnalysis(machineId, days);
-            console.log(`💰 Análisis de costos: ${costAnalysis.length} registros`);
-        } catch (costError) {
-            console.warn('⚠️ Error al obtener análisis de costos:', costError);
-            costAnalysis = [];
-        }
-        try {
-            // Intentar obtener métricas de operadores
-            operatorMetrics = await getOperatorProductivityMetrics(machineId, days);
-            console.log(`👥 Métricas de operadores: ${operatorMetrics.length} registros`);
-        } catch (opError) {
-            console.warn('⚠️ Error al obtener métricas de operadores:', opError);
-            operatorMetrics = [];
-        }
         return __TURBOPACK__imported__module__$5b$project$5d2f$Downloads$2f$mrpii__2$2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
             success: true,
             data: {
                 production: productionData,
                 downtime: downtimeData,
-                oee_history: oeeHistory,
-                cost_analysis: costAnalysis,
-                operator_metrics: operatorMetrics,
                 insights: insights,
-                summary: {
-                    avg_oee: oeeHistory.length > 0 ? oeeHistory.reduce((sum, item)=>sum + (item.oee || 0), 0) / oeeHistory.length : 0,
-                    total_production: productionData.reduce((sum, item)=>sum + (item.registros || 0), 0),
-                    total_downtime_hours: downtimeData.reduce((sum, item)=>sum + (item.num_paros || 0), 0) * 0.5,
-                    total_records: productionData.length + downtimeData.length
-                },
                 filters: {
                     machineId,
                     days,
@@ -875,7 +839,12 @@ async function getHistoricalProductionData(machineId, days, aggregation) {
     GROUP BY ${groupBy}
     ORDER BY periodo DESC, cm.Cod_maquina
   `;
-    return await (0, __TURBOPACK__imported__module__$5b$project$5d2f$Downloads$2f$mrpii__2$2f$lib$2f$database$2f$connection$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["executeQuery"])(sql);
+    try {
+        return await (0, __TURBOPACK__imported__module__$5b$project$5d2f$Downloads$2f$mrpii__2$2f$lib$2f$database$2f$connection$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["executeQuery"])(sql, undefined, 'mapex');
+    } catch (error) {
+        console.warn('⚠️ Error al obtener datos históricos - retornando datos vacíos');
+        return [];
+    }
 }
 async function getHistoricalDowntimeData(machineId, days) {
     const machineFilter = machineId ? `AND cm.Cod_maquina = '${machineId}'` : '';
@@ -901,7 +870,12 @@ async function getHistoricalDowntimeData(machineId, days) {
       ${machineFilter}
     ORDER BY hpp.fecha_inicio DESC
   `;
-    return await (0, __TURBOPACK__imported__module__$5b$project$5d2f$Downloads$2f$mrpii__2$2f$lib$2f$database$2f$connection$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["executeQuery"])(sql);
+    try {
+        return await (0, __TURBOPACK__imported__module__$5b$project$5d2f$Downloads$2f$mrpii__2$2f$lib$2f$database$2f$connection$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["executeQuery"])(sql, undefined, 'mapex');
+    } catch (error) {
+        console.warn('⚠️ Error al obtener datos históricos - retornando datos vacíos');
+        return [];
+    }
 }
 async function calculateHistoricalOEE(machineId, days, aggregation) {
     const machineFilter = machineId ? `AND cm.Cod_maquina = '${machineId}'` : '';
@@ -936,7 +910,12 @@ async function calculateHistoricalOEE(machineId, days, aggregation) {
     GROUP BY ${dateFormat}, cm.Cod_maquina, cm.desc_maquina
     ORDER BY periodo DESC, cm.Cod_maquina
   `;
-    return await (0, __TURBOPACK__imported__module__$5b$project$5d2f$Downloads$2f$mrpii__2$2f$lib$2f$database$2f$connection$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["executeQuery"])(sql);
+    try {
+        return await (0, __TURBOPACK__imported__module__$5b$project$5d2f$Downloads$2f$mrpii__2$2f$lib$2f$database$2f$connection$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["executeQuery"])(sql, undefined, 'mapex');
+    } catch (error) {
+        console.warn('⚠️ Error al obtener datos históricos - retornando datos vacíos');
+        return [];
+    }
 }
 async function getOperatorProductivityMetrics(machineId, days) {
     const machineFilter = machineId ? `AND cm.Cod_maquina = '${machineId}'` : '';
@@ -976,7 +955,12 @@ async function getOperatorProductivityMetrics(machineId, days) {
     HAVING SUM(hp.tiempo_trabajado_min) >= 60 -- Al menos 1 hora trabajada
     ORDER BY piezas_por_hora DESC
   `;
-    return await (0, __TURBOPACK__imported__module__$5b$project$5d2f$Downloads$2f$mrpii__2$2f$lib$2f$database$2f$connection$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["executeQuery"])(sql);
+    try {
+        return await (0, __TURBOPACK__imported__module__$5b$project$5d2f$Downloads$2f$mrpii__2$2f$lib$2f$database$2f$connection$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["executeQuery"])(sql, undefined, 'mapex');
+    } catch (error) {
+        console.warn('⚠️ Error al obtener datos históricos - retornando datos vacíos');
+        return [];
+    }
 }
 async function getCostAnalysis(machineId, days) {
     const machineFilter = machineId ? `AND cm.Cod_maquina = '${machineId}'` : '';
@@ -1020,7 +1004,12 @@ async function getCostAnalysis(machineId, days) {
     GROUP BY cm.Cod_maquina, cm.desc_maquina
     ORDER BY costo_total_perdidas_euros DESC
   `;
-    return await (0, __TURBOPACK__imported__module__$5b$project$5d2f$Downloads$2f$mrpii__2$2f$lib$2f$database$2f$connection$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["executeQuery"])(sql);
+    try {
+        return await (0, __TURBOPACK__imported__module__$5b$project$5d2f$Downloads$2f$mrpii__2$2f$lib$2f$database$2f$connection$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["executeQuery"])(sql, undefined, 'mapex');
+    } catch (error) {
+        console.warn('⚠️ Error al obtener datos históricos - retornando datos vacíos');
+        return [];
+    }
 }
 async function analyzeTrends(historicalData) {
     if (historicalData.length < 2) return {

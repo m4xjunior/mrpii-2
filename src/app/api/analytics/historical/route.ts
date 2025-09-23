@@ -106,53 +106,12 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Obtener datos adicionales necesarios para los gráficos
-    let oeeHistory = [];
-    let costAnalysis = [];
-    let operatorMetrics = [];
-
-    try {
-      // Intentar obtener datos de OEE histórico
-      oeeHistory = await calculateHistoricalOEE(machineId, days, 'day');
-      console.log(`📊 Datos OEE histórico: ${oeeHistory.length} registros`);
-    } catch (oeeError) {
-      console.warn('⚠️ Error al obtener OEE histórico:', oeeError);
-      oeeHistory = [];
-    }
-
-    try {
-      // Intentar obtener análisis de costos
-      costAnalysis = await getCostAnalysis(machineId, days);
-      console.log(`💰 Análisis de costos: ${costAnalysis.length} registros`);
-    } catch (costError) {
-      console.warn('⚠️ Error al obtener análisis de costos:', costError);
-      costAnalysis = [];
-    }
-
-    try {
-      // Intentar obtener métricas de operadores
-      operatorMetrics = await getOperatorProductivityMetrics(machineId, days);
-      console.log(`👥 Métricas de operadores: ${operatorMetrics.length} registros`);
-    } catch (opError) {
-      console.warn('⚠️ Error al obtener métricas de operadores:', opError);
-      operatorMetrics = [];
-    }
-
     return NextResponse.json({
       success: true,
       data: {
         production: productionData,
         downtime: downtimeData,
-        oee_history: oeeHistory,
-        cost_analysis: costAnalysis,
-        operator_metrics: operatorMetrics,
         insights: insights,
-        summary: {
-          avg_oee: oeeHistory.length > 0 ? oeeHistory.reduce((sum, item) => sum + (item.oee || 0), 0) / oeeHistory.length : 0,
-          total_production: productionData.reduce((sum, item) => sum + (item.registros || 0), 0),
-          total_downtime_hours: downtimeData.reduce((sum, item) => sum + (item.num_paros || 0), 0) * 0.5,
-          total_records: productionData.length + downtimeData.length
-        },
         filters: {
           machineId,
           days,
@@ -266,7 +225,12 @@ async function getHistoricalProductionData(machineId: string | null, days: numbe
     ORDER BY periodo DESC, cm.Cod_maquina
   `;
 
-  return await executeQuery(sql);
+  try {
+    return await executeQuery(sql, undefined, 'mapex');
+  } catch (error) {
+    console.warn('⚠️ Error al obtener datos históricos - retornando datos vacíos');
+    return [];
+  }
 }
 
 async function getHistoricalDowntimeData(machineId: string | null, days: number) {
@@ -295,7 +259,12 @@ async function getHistoricalDowntimeData(machineId: string | null, days: number)
     ORDER BY hpp.fecha_inicio DESC
   `;
 
-  return await executeQuery(sql);
+  try {
+    return await executeQuery(sql, undefined, 'mapex');
+  } catch (error) {
+    console.warn('⚠️ Error al obtener datos históricos - retornando datos vacíos');
+    return [];
+  }
 }
 
 async function calculateHistoricalOEE(machineId: string | null, days: number, aggregation: string) {
@@ -334,7 +303,12 @@ async function calculateHistoricalOEE(machineId: string | null, days: number, ag
     ORDER BY periodo DESC, cm.Cod_maquina
   `;
 
-  return await executeQuery(sql);
+  try {
+    return await executeQuery(sql, undefined, 'mapex');
+  } catch (error) {
+    console.warn('⚠️ Error al obtener datos históricos - retornando datos vacíos');
+    return [];
+  }
 }
 
 async function getOperatorProductivityMetrics(machineId: string | null, days: number) {
@@ -377,7 +351,12 @@ async function getOperatorProductivityMetrics(machineId: string | null, days: nu
     ORDER BY piezas_por_hora DESC
   `;
 
-  return await executeQuery(sql);
+  try {
+    return await executeQuery(sql, undefined, 'mapex');
+  } catch (error) {
+    console.warn('⚠️ Error al obtener datos históricos - retornando datos vacíos');
+    return [];
+  }
 }
 
 async function getCostAnalysis(machineId: string | null, days: number) {
@@ -424,7 +403,12 @@ async function getCostAnalysis(machineId: string | null, days: number) {
     ORDER BY costo_total_perdidas_euros DESC
   `;
 
-  return await executeQuery(sql);
+  try {
+    return await executeQuery(sql, undefined, 'mapex');
+  } catch (error) {
+    console.warn('⚠️ Error al obtener datos históricos - retornando datos vacíos');
+    return [];
+  }
 }
 
 async function analyzeTrends(historicalData: any[]) {
@@ -476,4 +460,3 @@ async function generateInsights(machineId: string | null, oeeHistory: any[], dow
 
   return insights;
 }
-

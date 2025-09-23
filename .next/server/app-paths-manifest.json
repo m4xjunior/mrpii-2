@@ -3,9 +3,12 @@
   "/api/analytics/historical/route": "app/api/analytics/historical/route.js",
   "/api/analytics/insights/route": "app/api/analytics/insights/route.js",
   "/api/analytics/monthly/route": "app/api/analytics/monthly/route.js",
+  "/api/oee-simple/route": "app/api/oee-simple/route.js",
+  "/api/oee/historical/route": "app/api/oee/historical/route.js",
   "/api/scada/machine-details/route": "app/api/scada/machine-details/route.js",
   "/api/scada/machines/route": "app/api/scada/machines/route.js",
   "/api/scada/production/route": "app/api/scada/production/route.js",
   "/favicon.ico/route": "app/favicon.ico/route.js",
+  "/of-detail/[ofId]/page": "app/of-detail/[ofId]/page.js",
   "/page": "app/page.js"
 }

@@ -64,38 +64,11 @@ export default function HistoricalCharts({ machineId, data, isLoading, isDark = 
     );
   }
 
-  // Debug: mostrar qué datos están llegando
-  console.log('📊 HistoricalCharts data:', data);
-
-  if (!data) {
+  if (!data || !data.oee_history) {
     return (
       <div className="text-center py-5">
         <i className="fas fa-chart-line text-muted mb-3" style={{ fontSize: '3rem' }}></i>
         <h5 className="text-muted">No hay datos históricos disponibles</h5>
-        <p style={{ color: themeColors?.textSecondary || '#6c757d', fontSize: '0.9rem' }}>
-          Los gráficos se mostrarán cuando haya datos de producción o paradas disponibles
-        </p>
-      </div>
-    );
-  }
-
-  // Si hay datos de producción o downtime, mostrar los gráficos disponibles
-  const hasProductionData = data.production && data.production.length > 0;
-  const hasDowntimeData = data.downtime && data.downtime.length > 0;
-  const hasOEEData = data.oee_history && data.oee_history.length > 0;
-
-  if (!hasProductionData && !hasDowntimeData && !hasOEEData) {
-    return (
-      <div className="text-center py-5">
-        <i className="fas fa-chart-line text-muted mb-3" style={{ fontSize: '3rem' }}></i>
-        <h5 className="text-muted">No hay datos históricos disponibles</h5>
-        <p style={{ color: themeColors?.textSecondary || '#6c757d', fontSize: '0.9rem' }}>
-          Datos disponibles: {JSON.stringify({
-            production: hasProductionData,
-            downtime: hasDowntimeData,
-            oee: hasOEEData
-          })}
-        </p>
       </div>
     );
   }
@@ -113,16 +86,12 @@ export default function HistoricalCharts({ machineId, data, isLoading, isDark = 
       background: isDark
         ? 'linear-gradient(135deg, #2a2a2a 0%, #3a3a3a 100%)'
         : 'linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%)',
-      borderRadius: '15px',
-      padding: '1rem',
+      borderRadius: '20px',
+      padding: '2rem',
       boxShadow: isDark
-        ? '0 4px 15px rgba(0,0,0,0.3)'
-        : '0 4px 15px rgba(0,0,0,0.08)',
-      border: isDark ? `1px solid ${themeColors?.border || '#404040'}` : 'none',
-      height: '100%',
-      display: 'flex',
-      flexDirection: 'column',
-      overflow: 'hidden'
+        ? '0 8px 25px rgba(0,0,0,0.3)'
+        : '0 8px 25px rgba(0,0,0,0.08)',
+      border: isDark ? `1px solid ${themeColors?.border || '#404040'}` : 'none'
     }}>
       {/* Header con controles */}
       <div className="d-flex justify-content-between align-items-center mb-4">
@@ -200,17 +169,12 @@ export default function HistoricalCharts({ machineId, data, isLoading, isDark = 
       </div>
 
       {/* Contenido de gráficos */}
-      <div className="chart-content" style={{
+      <div className="chart-content p-3" style={{
         background: isDark
           ? 'rgba(255,255,255,0.02)'
           : 'rgba(0,0,0,0.02)',
-        borderRadius: '12px',
-        border: isDark ? `1px solid ${themeColors?.border || '#404040'}` : 'none',
-        flex: 1,
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-        padding: '0.8rem'
+        borderRadius: '15px',
+        border: isDark ? `1px solid ${themeColors?.border || '#404040'}` : 'none'
       }}>
         {activeChart === 'oee' && <OEEChart data={data.oee_history} isDark={isDark} themeColors={themeColors} />}
         {activeChart === 'production' && <ProductionChart data={data.production} isDark={isDark} themeColors={themeColors} />}
@@ -505,16 +469,8 @@ function OEEChart({ data, isDark = false, themeColors }: { data: any[], isDark?:
   };
 
   return (
-    <div className="chart-container" style={{
-      height: '100%',
-      minHeight: '300px',
-      maxHeight: '400px',
-      display: 'flex',
-      flexDirection: 'column'
-    }}>
-      <div style={{ flex: 1, minHeight: 0 }}>
-        <Line data={chartData} options={options} />
-      </div>
+    <div className="chart-container" style={{ height: '400px' }}>
+      <Line data={chartData} options={options} />
 
       {/* Indicadores de meta */}
       <div className="row mt-4 g-2">
@@ -682,16 +638,9 @@ function ProductionChart({ data, isDark = false, themeColors }: { data: any[], i
   };
 
   return (
-    <div className="chart-container" style={{
-      height: '100%',
-      minHeight: '300px',
-      maxHeight: '400px',
-      display: 'flex',
-      flexDirection: 'column'
-    }}>
-      <div style={{ flex: 1, minHeight: 0 }}>
-        <Chart type="bar" data={chartData} options={options} />
-      </div>
+    <div className="chart-container" style={{ height: '400px' }}>
+      <Chart type="bar" data={chartData} options={options} />
+
     </div>
   );
 }
@@ -869,16 +818,9 @@ function DowntimeChart({ data, isDark = false, themeColors }: { data: any[], isD
   };
 
   return (
-    <div className="chart-container" style={{
-      height: '100%',
-      minHeight: '300px',
-      maxHeight: '400px',
-      display: 'flex',
-      flexDirection: 'column'
-    }}>
-      <div style={{ flex: 1, minHeight: 0 }}>
-        <Chart type="bar" data={chartData} options={options} />
-      </div>
+    <div className="chart-container" style={{ height: '400px' }}>
+      <Chart type="bar" data={chartData} options={options} />
+
     </div>
   );
 }
@@ -1010,16 +952,9 @@ function CostsChart({ data, isDark = false, themeColors }: { data: any[], isDark
   };
 
   return (
-    <div className="chart-container" style={{
-      height: '100%',
-      minHeight: '300px',
-      maxHeight: '400px',
-      display: 'flex',
-      flexDirection: 'column'
-    }}>
-      <div style={{ flex: 1, minHeight: 0 }}>
-        <Chart type="bar" data={chartData} options={options} />
-      </div>
+    <div className="chart-container" style={{ height: '400px' }}>
+      <Chart type="bar" data={chartData} options={options} />
+
     </div>
   );
 }
@@ -1152,16 +1087,9 @@ function OperatorsChart({ data, isDark = false, themeColors }: { data: any[], is
   };
 
   return (
-    <div className="chart-container" style={{
-      height: '100%',
-      minHeight: '300px',
-      maxHeight: '400px',
-      display: 'flex',
-      flexDirection: 'column'
-    }}>
-      <div style={{ flex: 1, minHeight: 0 }}>
-        <Chart type="bar" data={chartData} options={options} />
-      </div>
+    <div className="chart-container" style={{ height: '400px' }}>
+      <Chart type="bar" data={chartData} options={options} />
+
     </div>
   );
 }

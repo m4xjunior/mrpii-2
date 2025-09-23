@@ -1,11 +1,26 @@
 {
+  "/_not-found/page": "/_not-found",
   "/api/analytics/daily/route": "/api/analytics/daily",
   "/api/analytics/historical/route": "/api/analytics/historical",
   "/api/analytics/insights/route": "/api/analytics/insights",
   "/api/analytics/monthly/route": "/api/analytics/monthly",
+  "/api/management/route": "/api/management",
+  "/api/oee-simple/route": "/api/oee-simple",
+  "/api/oee/historical/route": "/api/oee/historical",
+  "/api/oee/route": "/api/oee",
+  "/api/scada/costs-config/route": "/api/scada/costs-config",
+  "/api/scada/costs/route": "/api/scada/costs",
   "/api/scada/machine-details/route": "/api/scada/machine-details",
   "/api/scada/machines/route": "/api/scada/machines",
+  "/api/scada/production/historical/route": "/api/scada/production/historical",
   "/api/scada/production/route": "/api/scada/production",
+  "/api/shift-comparison/route": "/api/shift-comparison",
+  "/api/shift-summary/route": "/api/shift-summary",
   "/favicon.ico/route": "/favicon.ico",
-  "/page": "/"
+  "/of-detail/[ofId]/page": "/of-detail/[ofId]",
+  "/page": "/",
+  "/perfil/page": "/perfil",
+  "/shift-comparison/page": "/shift-comparison",
+  "/shift-summary/page": "/shift-summary",
+  "/test-production/page": "/test-production"
 }

@@ -183,7 +183,12 @@ async function getCurrentMachinesData() {
     ORDER BY cm.Cod_maquina
   `;
 
-  return await executeQuery(sql);
+  try {
+    return await executeQuery(sql, undefined, 'mapex');
+  } catch (error) {
+    console.warn('⚠️ Error al obtener datos de productos - retornando datos vacíos');
+    return [];
+  }
 }
 
 async function generateMachineInsights(machine: any) {

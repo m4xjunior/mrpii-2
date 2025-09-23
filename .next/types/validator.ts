@@ -47,10 +47,64 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
 }
 
 
+// Validate ../../src/app/cause-improvement-log/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/cause-improvement-log">> = Specific
+  const handler = {} as typeof import("../../src/app/cause-improvement-log/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/of-detail/[ofId]/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/of-detail/[ofId]">> = Specific
+  const handler = {} as typeof import("../../src/app/of-detail/[ofId]/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../src/app/page.tsx
 {
   type __IsExpected<Specific extends AppPageConfig<"/">> = Specific
   const handler = {} as typeof import("../../src/app/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/perfil/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/perfil">> = Specific
+  const handler = {} as typeof import("../../src/app/perfil/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/scada-home/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/scada-home">> = Specific
+  const handler = {} as typeof import("../../src/app/scada-home/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/shift-comparison/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/shift-comparison">> = Specific
+  const handler = {} as typeof import("../../src/app/shift-comparison/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/shift-summary/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/shift-summary">> = Specific
+  const handler = {} as typeof import("../../src/app/shift-summary/page.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check
@@ -110,6 +164,33 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../src/app/api/oee-simple/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/oee-simple">> = Specific
+  const handler = {} as typeof import("../../src/app/api/oee-simple/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/api/oee/historical/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/oee/historical">> = Specific
+  const handler = {} as typeof import("../../src/app/api/oee/historical/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/api/oee/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/oee">> = Specific
+  const handler = {} as typeof import("../../src/app/api/oee/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../src/app/api/scada/costs-config/route.ts
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/scada/costs-config">> = Specific
@@ -159,6 +240,24 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/scada/production">> = Specific
   const handler = {} as typeof import("../../src/app/api/scada/production/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/api/shift-comparison/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/shift-comparison">> = Specific
+  const handler = {} as typeof import("../../src/app/api/shift-comparison/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/api/shift-summary/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/shift-summary">> = Specific
+  const handler = {} as typeof import("../../src/app/api/shift-summary/route.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check

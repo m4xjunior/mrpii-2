@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs/promises';
-import path from 'path';
+import { executeQuery } from 'lib/database/connection';
 
 interface ProductionData {
   machineId: string;
@@ -13,6 +12,8 @@ interface ProductionData {
   timestamp: string;
   operator?: string;
   shift?: string;
+  of_actual?: string;
+  producto_actual?: string;
 }
 
 interface ProductionSummary {
@@ -27,19 +28,17 @@ interface ProductionSummary {
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('🔍 Buscando datos de producción...');
+    console.log('🔍 Buscando datos de producción reales...');
 
-    // Simular datos de producción (en producción vendría de la BD)
-    const productionData = await getProductionData();
-
-    // Guardar datos en JSON para histórico
-    await saveProductionData(productionData);
+    // Obtener datos reales del banco MAPEX
+    const productionData = await getRealProductionData();
 
     return NextResponse.json({
       success: true,
       data: productionData,
       summary: calculateSummary(productionData),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      source: 'mapex-database'
     });
 
   } catch (error) {
@@ -54,68 +53,73 @@ export async function GET(request: NextRequest) {
   }
 }
 
-async function getProductionData(): Promise<ProductionData[]> {
-  // Simular datos de producción (reemplazar con consulta real a BD)
-  const machines = [
-    { id: 'DOBL01', name: 'Dobladora 01', baseOk: 8500, baseNok: 45, baseRw: 12 },
-    { id: 'DOBL02', name: 'Dobladora 02', baseOk: 9200, baseNok: 38, baseRw: 8 },
-    { id: 'SOLD01', name: 'Soldadura 01', baseOk: 7800, baseNok: 52, baseRw: 15 },
-    { id: 'SOLD02', name: 'Soldadura 02', baseOk: 8100, baseNok: 41, baseRw: 11 },
-    { id: 'TROQ01', name: 'Troqueladora 01', baseOk: 7600, baseNok: 35, baseRw: 9 },
-    { id: 'TERM01', name: 'Terminación 01', baseOk: 8900, baseNok: 47, baseRw: 13 },
-  ];
-
-  const now = new Date();
-  const currentHour = now.getHours();
-  const currentMinute = now.getMinutes();
-
-  // Simular variación por minuto
-  const minuteVariation = Math.sin((currentHour * 60 + currentMinute) / 100) * 100;
-
-  return machines.map(machine => ({
-    machineId: machine.id,
-    machineName: machine.name,
-    ok: Math.floor(machine.baseOk + minuteVariation + Math.random() * 50),
-    nok: Math.floor(machine.baseNok + Math.random() * 10),
-    rw: Math.floor(machine.baseRw + Math.random() * 5),
-    total: 0, // Se calculará en el summary
-    efficiency: Math.round(85 + Math.random() * 15),
-    timestamp: now.toISOString(),
-    operator: `Operador ${Math.floor(Math.random() * 10) + 1}`,
-    shift: currentHour < 14 ? 'Mañana' : currentHour < 22 ? 'Tarde' : 'Noche'
-  }));
-}
-
-async function saveProductionData(data: ProductionData[]): Promise<void> {
+async function getRealProductionData(): Promise<ProductionData[]> {
   try {
-    const dataDir = path.join(process.cwd(), 'data', 'production');
-    const fileName = `${new Date().toISOString().split('T')[0]}.json`;
+    // Consulta SQL melhorada para obter dados de produção reais
+    const sql = `
+      SELECT
+        cm.Cod_maquina as machineId,
+        cm.desc_maquina as machineName,
+        -- Produção total da máquina (últimos 30 dias)
+        COALESCE(SUM(CASE WHEN hp.id_actividad = 2 THEN hp.unidades_ok ELSE 0 END), 0) as ok,
+        COALESCE(SUM(CASE WHEN hp.id_actividad = 2 THEN hp.unidades_nok ELSE 0 END), 0) as nok,
+        COALESCE(SUM(CASE WHEN hp.id_actividad = 2 THEN hp.unidades_repro ELSE 0 END), 0) as rw,
+        -- Informações atuais da máquina
+        cm.Rt_Cod_of as of_actual,
+        cm.Rt_Desc_producto as producto_actual,
+        cm.Rt_Desc_operario as operario,
+        cm.rt_desc_turno as turno,
+        -- Data da última atualização
+        MAX(hp.fecha_fin) as ultima_actualizacion,
+        -- Produção do último turno para dados mais recentes
+        COALESCE(SUM(CASE WHEN hp.id_actividad = 2 AND hp.fecha_fin >= DATEADD(hour, -8, GETDATE())
+                   THEN hp.unidades_ok ELSE 0 END), 0) as ok_ultimo_turno
+      FROM cfg_maquina cm
+      LEFT JOIN his_prod hp ON cm.id_maquina = hp.id_maquina
+        AND hp.fecha_fin >= DATEADD(day, -30, GETDATE())  -- Últimos 30 dias
+        AND hp.id_actividad = 2  -- Produção
+      WHERE cm.Cod_maquina IS NOT NULL
+        AND cm.Cod_maquina != ''
+        AND cm.Cod_maquina NOT LIKE '%AUX%'  -- Excluir máquinas auxiliares
+        AND cm.Cod_maquina NOT LIKE '%TEST%' -- Excluir máquinas de teste
+      GROUP BY cm.Cod_maquina, cm.desc_maquina, cm.Rt_Cod_of, cm.Rt_Desc_producto,
+               cm.Rt_Desc_operario, cm.rt_desc_turno
+      HAVING COALESCE(SUM(CASE WHEN hp.id_actividad = 2 THEN hp.unidades_ok ELSE 0 END), 0) > 0
+      ORDER BY ok DESC
+    `;
 
-    // Crear directorio si no existe
-    await fs.mkdir(dataDir, { recursive: true });
-
-    // Leer datos existentes
-    let existingData: ProductionData[] = [];
-    try {
-      const existingFile = await fs.readFile(path.join(dataDir, fileName), 'utf-8');
-      existingData = JSON.parse(existingFile);
-    } catch (error) {
-      // El archivo no existe, se creará uno nuevo
-    }
-
-    // Agregar nuevos datos
-    existingData.push(...data);
-
-    // Guardar archivo
-    await fs.writeFile(
-      path.join(dataDir, fileName),
-      JSON.stringify(existingData, null, 2),
-      'utf-8'
-    );
-
-    console.log('💾 Datos de producción guardados en:', path.join(dataDir, fileName));
+    const result = await executeQuery(sql, undefined, 'mapex');
+    
+    const now = new Date();
+    
+    return result.map((row: any) => {
+      // Usar produção do último turno se disponível, senão usar produção total
+      const okDisplay = row.ok_ultimo_turno > 0 ? row.ok_ultimo_turno : row.ok;
+      const nokDisplay = row.nok;
+      const rwDisplay = row.rw;
+      const totalDisplay = okDisplay + nokDisplay + rwDisplay;
+      const efficiency = totalDisplay > 0 ? Math.round((okDisplay / totalDisplay) * 100) : 0;
+      
+      return {
+        machineId: row.machineId || 'N/A',
+        machineName: row.machineName || 'Máquina sin nombre',
+        ok: okDisplay,
+        nok: nokDisplay,
+        rw: rwDisplay,
+        total: totalDisplay,
+        efficiency: Math.max(0, Math.min(100, efficiency)),
+        timestamp: row.ultima_actualizacion || now.toISOString(),
+        operator: row.operario || 'N/A',
+        shift: row.turno || 'N/A',
+        of_actual: row.of_actual || 'N/A',
+        producto_actual: row.producto_actual || 'N/A'
+      };
+    });
+    
   } catch (error) {
-    console.error('❌ Error al guardar datos de producción:', error);
+    console.error('❌ Error obteniendo datos de producción reales:', error);
+    // Fallback: retornar array vazio em caso de erro
+    return [];
   }
 }
 
@@ -124,12 +128,9 @@ function calculateSummary(data: ProductionData[]): ProductionSummary {
   const totalNok = data.reduce((sum, item) => sum + item.nok, 0);
   const totalRw = data.reduce((sum, item) => sum + item.rw, 0);
   const totalProduction = totalOk + totalNok + totalRw;
-  const averageEfficiency = data.reduce((sum, item) => sum + item.efficiency, 0) / data.length;
-
-  // Actualizar totales en cada máquina
-  data.forEach(item => {
-    item.total = item.ok + item.nok + item.rw;
-  });
+  const averageEfficiency = data.length > 0
+    ? data.reduce((sum, item) => sum + item.efficiency, 0) / data.length
+    : 0;
 
   return {
     totalOk,
