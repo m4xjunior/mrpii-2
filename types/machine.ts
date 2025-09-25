@@ -77,6 +77,14 @@ export interface Machine {
   codigo_producto?: string;
 }
 
+export interface OFInfo {
+  startDate: string | null;
+  endDate: string | null;
+  durationMinutes: number;
+  parosMinutes: number;
+  estimatedFinishDate: string | null;
+}
+
 export interface MachineStatus {
   machine: Machine;
   status: 'ACTIVA' | 'PARADA' | 'PRODUCIENDO' | 'MANTENIMIENTO' | 'INACTIVA';
@@ -101,12 +109,34 @@ export interface MachineStatus {
     progress: number;
     remainingPieces: number;
     remainingTime: string;
+    startDate?: string;
+    estimatedFinish?: string;
   };
   velocity: {
     current: number;
     nominal: number;
     ratio: number;
   };
+
+  // Novos campos conforme contrato de dados
+  rt_Cod_of: string;
+  rt_Desc_producto: string;
+  Rt_Unidades_planning: number;
+  rt_Unidades_ok: number;
+  rt_Unidades_nok: number;
+  rt_Unidades_rw: number;
+  rt_fecha_inicio: string | null;
+  rt_tiempo_prod: number;
+  rt_tiempo_pieza: number;
+  rt_velocidad: number;
+  rt_fecha_fin_estimada: string;
+  oee_turno: number;
+  rendimiento: number;
+  oee_of: number;
+  rendimiento_of: number;
+  rt_desc_paro: string | null;
+  rt_id_actividad: number;
+
   currentOF?: string;
   operator?: string;
   operatorFull?: string;
@@ -120,6 +150,7 @@ export interface MachineStatus {
     date?: string;
     shift: string;
   };
+  ofInfo: OFInfo;
 }
 
 export interface OEEData {
@@ -158,4 +189,23 @@ export interface MachineDetails {
   downtime: DowntimeData[];
   orders: any[];
   sales: any[];
+}
+
+export interface ShiftData {
+  turno: string; // 'Mañana', 'Tarde', 'Noche'
+  oee: number;
+  rendimiento: number;
+  ok: number;
+  nok: number;
+  rwk: number;
+  prep_min: number;
+  prod_min: number;
+  paro_min: number;
+  fecha?: string;
+}
+
+export interface ShiftsAnalytics {
+  machine_code: string;
+  cod_of: string;
+  turnos: ShiftData[];
 }

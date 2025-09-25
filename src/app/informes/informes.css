@@ -1,0 +1,601 @@
+/* CSS para página Informes - seguindo especificações do plano */
+
+.informes-page {
+  min-height: 100vh;
+  background: #f8f9fa;
+  padding: 1rem;
+}
+
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.page-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.page-header h1 {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: #2c3e50;
+  margin-bottom: 0.5rem;
+}
+
+.page-header p {
+  font-size: 1.1rem;
+  color: #6c757d;
+}
+
+/* Filtros */
+.filtros-section {
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.filtros-container h3 {
+  margin-bottom: 1rem;
+  font-size: 1.4rem;
+  color: #2c3e50;
+}
+
+.filtros-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.filtro-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.filtro-item label {
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: #495057;
+}
+
+.filtro-item input {
+  padding: 0.75rem;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.filtro-item input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+}
+
+.filtros-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.btn-buscar {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-buscar:hover {
+  background: #0056b3;
+}
+
+.btn-buscar:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+}
+
+
+/* Meta section */
+.meta-section {
+  background: white;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.meta-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.meta-item:last-child {
+  border-bottom: none;
+}
+
+.meta-label {
+  font-weight: 500;
+  color: #495057;
+}
+
+.meta-value {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.meta-sub {
+  font-weight: 400;
+  color: #6c757d;
+}
+
+.badge-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-fase {
+  background: rgba(40, 167, 69, 0.15);
+  color: #1f7a38;
+}
+
+.badge-of {
+  background: rgba(0, 123, 255, 0.15);
+  color: #00529c;
+}
+
+.badge-sin_dato {
+  background: rgba(108, 117, 125, 0.15);
+  color: #495057;
+}
+
+/* Grid de turnos */
+.turnos-section {
+  margin-bottom: 2rem;
+}
+
+.turnos-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+/* Cards de turno */
+.turno-card {
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  border: 1px solid #e9ecef;
+}
+
+.turno-card.sem-dados {
+  text-align: center;
+  color: #6c757d;
+  padding: 3rem 1.5rem;
+}
+
+.turno-header {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.turno-header h3 {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #2c3e50;
+  margin-bottom: 0.5rem;
+}
+
+.turno-window {
+  font-size: 0.9rem;
+  color: #6c757d;
+  margin-bottom: 1rem;
+}
+
+.kpis-principais {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+/* KPI Values */
+.kpi-value {
+  text-align: center;
+}
+
+.kpi-value .value {
+  font-size: 1.8rem;
+  font-weight: bold;
+  margin-bottom: 0.25rem;
+}
+
+.kpi-value .label {
+  font-size: 0.85rem;
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Threshold colors */
+.kpi-verde {
+  color: #28a745 !important;
+}
+
+.kpi-amarelo {
+  color: #ffc107 !important;
+}
+
+.kpi-vermelho {
+  color: #dc3545 !important;
+}
+
+/* KPIs grid */
+.kpis-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Produção section */
+.producao-section {
+  margin-bottom: 1.5rem;
+}
+
+.producao-section h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 1rem;
+}
+
+.producao-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.producao-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background: #f8f9fa;
+  border-radius: 4px;
+}
+
+.producao-item.total {
+  background: #e9ecef;
+  font-weight: 600;
+}
+
+.producao-label {
+  font-size: 0.9rem;
+  color: #495057;
+}
+
+.producao-valor {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.producao-valor.ok {
+  color: #28a745;
+}
+
+.producao-valor.nok {
+  color: #dc3545;
+}
+
+.producao-valor.rw {
+  color: #ffc107;
+}
+
+/* Tempos chart */
+.tempos-chart {
+  margin-bottom: 1.5rem;
+}
+
+.tempos-chart h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 1rem;
+}
+
+.chart-container {
+  background: #f8f9fa;
+  border-radius: 4px;
+  padding: 1rem;
+}
+
+.chart-bar {
+  display: flex;
+  height: 30px;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+  background: #e9ecef;
+}
+
+.bar-segment {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.bar-segment.prod {
+  background: #28a745;
+}
+
+.bar-segment.prep {
+  background: #6f42c1;
+}
+
+.bar-segment.pp {
+  background: #ffc107;
+}
+
+.bar-segment.pnp {
+  background: #fd7e14;
+}
+
+.bar-segment.cal {
+  background: #dc3545;
+}
+
+.chart-legend {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+.legend-color.prod {
+  background: #28a745;
+}
+
+.legend-color.prep {
+  background: #6f42c1;
+}
+
+.legend-color.pp {
+  background: #ffc107;
+}
+
+.legend-color.pnp {
+  background: #fd7e14;
+}
+
+.legend-color.cal {
+  background: #dc3545;
+}
+
+/* Totais section */
+.totais-section {
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.totais-section h2 {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #2c3e50;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.totais-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1.5rem;
+  max-width: 100%;
+}
+
+.resumen-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.resumen-card {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  border: 1px solid #e9ecef;
+}
+
+.resumen-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.resumen-label {
+  font-size: 0.9rem;
+  color: #495057;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.resumen-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+.resumen-subvalues {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.resumen-subvalues .ok {
+  color: #28a745;
+}
+
+.resumen-subvalues .nok {
+  color: #dc3545;
+}
+
+.resumen-subvalues .rw {
+  color: #ffc107;
+}
+
+.resumen-fechas {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: #495057;
+}
+
+/* Error & Placeholder messages */
+.error-message, .placeholder-message {
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+  color: #721c24;
+  padding: 1rem;
+  border-radius: 4px;
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.placeholder-message {
+    background: #e2e3e5;
+    border-color: #d6d8db;
+    color: #383d41;
+}
+
+
+/* --- SKELETON LOADER --- */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.turno-card.skeleton {
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.skeleton-header, .skeleton-kpi, .skeleton-grid, .skeleton-producao, .skeleton-chart {
+  background-color: #e0e0e0;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+.skeleton-header {
+  height: 60px;
+  width: 80%;
+}
+
+.skeleton-kpi {
+  height: 50px;
+  width: 100%;
+}
+
+.skeleton-grid {
+  height: 80px;
+  width: 100%;
+}
+
+.skeleton-producao {
+  height: 100px;
+  width: 100%;
+}
+
+.skeleton-chart {
+  height: 120px;
+  width: 100%;
+  margin-bottom: 0;
+}
+
+
+/* Responsive design */
+@media (max-width: 1200px) {
+  .turnos-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .turnos-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .filtros-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .meta-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .totais-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .kpis-principais,
+  .producao-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .informes-page {
+    padding: 0.5rem;
+  }
+
+  .page-header h1 {
+    font-size: 2rem;
+  }
+
+  .turno-card {
+    padding: 1rem;
+  }
+}

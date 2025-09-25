@@ -17,8 +17,8 @@ export interface ProductionData {
 }
 
 /**
- * Calcula OEE usando a função F_his_ct() do MAPEX (simulada)
- * Esta função simula o comportamento da função F_his_ct('WORKCENTER','','OF',...) do MAPEX
+ * Calcula OEE usando a função F_his_ct() do MAPEX
+ * Esta função usa a função F_his_ct('WORKCENTER','','OF',...) do MAPEX
  */
 export async function calculateOEEForOF(
   machineCode: string,
@@ -26,46 +26,21 @@ export async function calculateOEEForOF(
   daysBack: number = 10
 ): Promise<OEECalculation | null> {
   try {
-    // Simular a função F_his_ct() do MAPEX - calcular OEE baseado em dados históricos
+    // Usar a função F_his_ct() do MAPEX para calcular OEE da OF
     const sql = `
       SELECT
-        -- Disponibilidad: tiempo disponible vs tiempo total
-        CASE
-          WHEN SUM(CAST(DATEDIFF(SECOND, hp.fecha_ini, hp.fecha_fin) AS BIGINT)) > 0 THEN
-            ROUND(
-              (SUM(CAST(DATEDIFF(SECOND, hp.fecha_ini, hp.fecha_fin) AS BIGINT)) -
-               ISNULL(SUM(CASE WHEN hp.id_actividad = 3 THEN CAST(DATEDIFF(SECOND, hp.fecha_ini, hp.fecha_fin) AS BIGINT) ELSE 0 END), 0)
-              ) * 100.0 /
-              SUM(CAST(DATEDIFF(SECOND, hp.fecha_ini, hp.fecha_fin) AS BIGINT)), 2
-            )
-          ELSE 0
-        END as disponibilidad,
-
-        -- Rendimiento: unidades producidas vs velocidad nominal
-        CASE
-          WHEN cm.Rt_Rendimientonominal1 > 0 AND SUM(CAST(DATEDIFF(SECOND, hp.fecha_ini, hp.fecha_fin) AS BIGINT)) > 0 THEN
-            ROUND(
-              (SUM(hp.unidades_ok + hp.unidades_nok) * 3600.0) /
-              (cm.Rt_Rendimientonominal1 * (SUM(CAST(DATEDIFF(SECOND, hp.fecha_ini, hp.fecha_fin) AS BIGINT)) / 3600.0)), 2
-            )
-          ELSE 0
-        END as rendimiento,
-
-        -- Calidad: unidades OK vs total producidas
-        CASE
-          WHEN SUM(hp.unidades_ok + hp.unidades_nok) > 0 THEN
-            ROUND((SUM(hp.unidades_ok) * 100.0) / SUM(hp.unidades_ok + hp.unidades_nok), 2)
-          ELSE 0
-        END as calidad
-
+        fhc.OEE_c as oee,
+        fhc.Rend_c as rendimiento,
+        fhc.Disp_c as disponibilidad,
+        fhc.Cal_c as calidad
       FROM cfg_maquina cm
-      LEFT JOIN his_fase hf ON cm.rt_id_his_fase = hf.id_his_fase
-      LEFT JOIN his_prod hp ON hf.id_his_fase = hp.id_his_fase
-      WHERE cm.Cod_maquina = '${machineCode}'
-      AND cm.Rt_Cod_of = '${codOF}'
-      AND hp.fecha_fin >= DATEADD(DAY, -${daysBack}, GETDATE())
-      AND hp.id_actividad = 2 -- Producción
-      GROUP BY cm.Rt_Rendimientonominal1 -- Agrupar para agregar correctamente
+      CROSS APPLY [F_his_ct]('WORKCENTER', '', 'OF', DATEADD(DAY, -${daysBack}, GETDATE()), DATEADD(DAY, 1, GETDATE()), 0) fhc
+      WHERE cm.Cod_maquina = '${machineCode.replace(/'/g, "''")}'
+        AND cm.Rt_Cod_of = '${codOF.replace(/'/g, "''")}'
+        AND fhc.workgroup = cm.Cod_maquina
+        AND cm.activo = 1
+        AND cm.Rt_Cod_of IS NOT NULL
+        AND cm.Rt_Cod_of <> '--'
     `;
 
     const result = await executeQuery(sql, undefined, 'mapex');
@@ -95,51 +70,28 @@ export async function calculateOEEForOF(
 }
 
 /**
- * Calcula OEE por turno usando simulação da função F_his_ct('WORKCENTER','DAY','TURNO',...)
+ * Calcula OEE por turno usando a função F_his_ct('WORKCENTER','DAY','TURNO',...)
  */
 export async function calculateOEEForTurno(
   machineCode: string,
   diaProductivo: string
 ): Promise<OEECalculation | null> {
   try {
+    // Usar a função F_his_ct() do MAPEX para calcular OEE do turno
     const sql = `
       SELECT
-        -- Disponibilidad del turno
-        CASE
-          WHEN SUM(CAST(DATEDIFF(SECOND, hp.fecha_ini, hp.fecha_fin) AS BIGINT)) > 0 THEN
-            ROUND(
-              (SUM(CAST(DATEDIFF(SECOND, hp.fecha_ini, hp.fecha_fin) AS BIGINT)) -
-               ISNULL(SUM(CASE WHEN hp.id_actividad = 3 THEN CAST(DATEDIFF(SECOND, hp.fecha_ini, hp.fecha_fin) AS BIGINT) ELSE 0 END), 0)
-              ) * 100.0 /
-              SUM(CAST(DATEDIFF(SECOND, hp.fecha_ini, hp.fecha_fin) AS BIGINT)), 2
-            )
-          ELSE 0
-        END as disponibilidad,
-
-        -- Rendimiento del turno
-        CASE
-          WHEN cm.Rt_Rendimientonominal1 > 0 AND SUM(CAST(DATEDIFF(SECOND, hp.fecha_ini, hp.fecha_fin) AS BIGINT)) > 0 THEN
-            ROUND(
-              (SUM(hp.unidades_ok + hp.unidades_nok) * 3600.0) /
-              (cm.Rt_Rendimientonominal1 * (SUM(CAST(DATEDIFF(SECOND, hp.fecha_ini, hp.fecha_fin) AS BIGINT)) / 3600.0)), 2
-            )
-          ELSE 0
-        END as rendimiento,
-
-        -- Calidad del turno
-        CASE
-          WHEN SUM(hp.unidades_ok + hp.unidades_nok) > 0 THEN
-            ROUND((SUM(hp.unidades_ok) * 100.0) / SUM(hp.unidades_ok + hp.unidades_nok), 2)
-          ELSE 0
-        END as calidad
-
+        fhc.OEE_c as oee,
+        fhc.Rend_c as rendimiento,
+        fhc.Disp_c as disponibilidad,
+        fhc.Cal_c as calidad
       FROM cfg_maquina cm
-      LEFT JOIN his_fase hf ON cm.rt_id_his_fase = hf.id_his_fase
-      LEFT JOIN his_prod hp ON hf.id_his_fase = hp.id_his_fase
-      WHERE cm.Cod_maquina = '${machineCode}'
-      AND CONVERT(VARCHAR(10), cm.rt_dia_productivo, 111) = '${diaProductivo}'
-      AND hp.id_actividad = 2 -- Producción
-      GROUP BY cm.Rt_Rendimientonominal1 -- Agrupar para agregar correctamente
+      CROSS APPLY [F_his_ct]('WORKCENTER', 'DAY', 'TURNO', DATEADD(DAY, -1, GETDATE()), DATEADD(DAY, 1, GETDATE()), 0) fhc
+      WHERE cm.Cod_maquina = '${machineCode.replace(/'/g, "''")}'
+        AND CONVERT(VARCHAR(10), cm.rt_dia_productivo, 111) = '${diaProductivo.replace(/'/g, "''")}'
+        AND fhc.workgroup = cm.Cod_maquina
+        AND fhc.timeperiod = CONVERT(VARCHAR(10), cm.rt_dia_productivo, 111)
+        AND fhc.desc_turno = cm.rt_desc_turno
+        AND cm.activo = 1
     `;
 
     const result = await executeQuery(sql, undefined, 'mapex');
@@ -186,7 +138,7 @@ export async function getProductionDataForOF(
       FROM his_prod hp
       INNER JOIN his_fase hf ON hp.id_his_fase = hf.id_his_fase
       INNER JOIN his_of ho ON hf.id_his_of = ho.id_his_of
-      WHERE ho.cod_of = '${codOF}'
+      WHERE ho.Rt_Cod_of = '${codOF}'
       AND hp.id_actividad = 2 -- Producción
     `;
 

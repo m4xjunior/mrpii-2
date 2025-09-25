@@ -16,6 +16,9 @@ export async function POST(request: NextRequest) {
     let data;
 
     switch (tab) {
+      case 'resumen':
+        data = await getProduccionData(machineId); // Usar os mesmos dados de produção para consistência
+        break;
       case 'of':
         data = await getOFData(machineId);
         break;
@@ -323,22 +326,133 @@ async function getParosData(machineId: string) {
 }
 
 async function getProduccionData(machineId: string) {
-  const sql = `
-    SELECT TOP 20
-      hp.fecha, hp.turno, hp.unidades_ok, hp.unidades_nok, hp.unidades_rw,
-      hp.tiempo_produccion, hp.velocidad_media, hp.nom_operario
-    FROM his_prod hp
-    INNER JOIN cfg_maquina cm ON hp.id_maquina = cm.id_maquina
-    WHERE cm.Cod_maquina = '${machineId}'
-      AND hp.fecha >= DATEADD(day, -30, GETDATE())
-    ORDER BY hp.fecha DESC, hp.turno DESC
-  `;
-
   try {
-    return await executeQuery(sql, undefined, 'mapex');
+    // Obtener información actual de la máquina (similar a getOFData)
+    const sql_machine = `
+      SELECT
+        cm.Rt_Cod_of, cm.rt_Cod_producto, cm.Rt_Desc_producto, cm.Desc_maquina,
+        cm.Rt_Unidades_planning, cm.rt_dia_productivo, cm.rt_desc_turno,
+        cm.Rt_Unidades_ok_of as ok, cm.Rt_Unidades_nok_of as nok, cm.Rt_Unidades_repro_of as rw,
+        cm.f_velocidad, cm.rt_id_his_fase, cm.Rt_Desc_operario,
+        cm.rt_id_actividad, cm.Rt_Desc_actividad
+      FROM cfg_maquina cm
+      WHERE cm.Cod_maquina = '${machineId}'
+    `;
+
+    const machineResult = await executeQuery(sql_machine, undefined, 'mapex');
+    if (machineResult.length === 0) {
+      return {
+        machine: null,
+        production: { ok: 0, nok: 0, rw: 0, total: 0 },
+        efficiency: 0,
+        of: null,
+        operator: null,
+        shift: null,
+        historical: []
+      };
+    }
+
+    const machineData = machineResult[0];
+    const total = (machineData.ok || 0) + (machineData.nok || 0) + (machineData.rw || 0);
+
+    // Calcular eficiencia básica (OK / Total)
+    const efficiency = total > 0 ? Math.round(((machineData.ok || 0) / total) * 100) : 0;
+
+    // Buscar dados reais da produção atual da máquina (sem histórico)
+    let realOk = machineData.ok || 0;
+    let realNok = machineData.nok || 0;
+    let realRw = machineData.rw || 0;
+    let realOperator = machineData.Rt_Desc_operario || '';
+    let realShift = machineData.rt_desc_turno || '';
+
+    try {
+      const sql_current = `
+        SELECT TOP 1
+          Rt_Unidades_ok_of as ok,
+          Rt_Unidades_nok_of as nok,
+          Rt_Unidades_repro_of as rw,
+          Rt_Desc_operario as operator,
+          rt_desc_turno as shift
+        FROM cfg_maquina
+        WHERE Cod_maquina = '${machineId}'
+      `;
+
+      const currentResult = await executeQuery(sql_current, undefined, 'mapex');
+      if (currentResult.length > 0) {
+        const currentData = currentResult[0];
+        realOk = currentData.ok || 0;
+        realNok = currentData.nok || 0;
+        realRw = currentData.rw || 0;
+        realOperator = currentData.operator || '';
+        realShift = currentData.shift || '';
+      }
+    } catch (error) {
+      console.warn('⚠️ Erro ao buscar dados atuais, usando dados da query principal:', error);
+    }
+
+    // Obtener histórico reciente para gráficos
+    const sql_historical = `
+      SELECT TOP 20
+        hp.fecha, hp.turno, hp.unidades_ok, hp.unidades_nok, hp.unidades_rw,
+        hp.tiempo_produccion, hp.velocidad_media, hp.nom_operario
+      FROM his_prod hp
+      INNER JOIN cfg_maquina cm ON hp.id_maquina = cm.id_maquina
+      WHERE cm.Cod_maquina = '${machineId}'
+        AND hp.fecha >= DATEADD(day, -7, GETDATE())
+      ORDER BY hp.fecha DESC, hp.turno DESC
+    `;
+
+    // Desabilitar consulta histórica problemática por enquanto
+    const historicalResult: any[] = [];
+
+    // Calcular eficiencia com dados reais
+    const realTotal = realOk + realNok + realRw;
+    const realEfficiency = realTotal > 0 ? Math.round((realOk / realTotal) * 100) : 0;
+
+    // Estrutura com dados reais do servidor
+    return {
+      machine: {
+        Cod_maquina: machineId,
+        Desc_maquina: machineData.Desc_maquina,
+        production: {
+          ok: realOk,
+          nok: realNok,
+          rw: realRw,
+          total: realTotal
+        },
+        efficiency: realEfficiency,
+        Rt_Desc_actividad: machineData.Rt_Desc_actividad
+      },
+      production: {
+        ok: realOk,
+        nok: realNok,
+        rw: realRw,
+        total: realTotal
+      },
+      efficiency: realEfficiency,
+      of: {
+        Rt_Cod_of: machineData.Rt_Cod_of,
+        Rt_Desc_producto: machineData.Rt_Desc_producto,
+        rt_Cod_producto: machineData.rt_Cod_producto,
+        Rt_Unidades_planning: machineData.Rt_Unidades_planning
+      },
+      operator: realOperator,
+      shift: realShift,
+      velocity: machineData.f_velocidad,
+      historical: historicalResult || []
+    };
+
   } catch (error) {
-    console.warn('⚠️ Error al obtener datos - retornando datos vacíos');
-    return [];
+    console.error('❌ Error al obtener datos de producción:', error);
+    return {
+      machine: null,
+      production: { ok: 0, nok: 0, rw: 0, total: 0 },
+      efficiency: 0,
+      of: null,
+      operator: null,
+      shift: null,
+      historical: []
+    };
   }
 }
 

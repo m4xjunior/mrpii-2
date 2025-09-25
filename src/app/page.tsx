@@ -288,7 +288,10 @@ export default function Dashboard() {
           </li>
           <li className="menu-label">Monitoreo</li>
           <li>
-            <a href="javascript:;">
+            <a href="/informes" onClick={(e) => {
+              e.preventDefault();
+              window.open('/informes', '_blank');
+            }}>
               <div className="parent-icon icon-color-2">
                 <i className="fas fa-chart-line"></i>
               </div>
@@ -632,6 +635,123 @@ export default function Dashboard() {
                                   <small className="text-danger ms-1">{machineStatus.downtime}</small>
                                 </div>
                               )}
+
+                              {/* Novas informações da OF */}
+                              {machineStatus.ofInfo && (
+                                <>
+                                  {/* Fecha de inicio da OF */}
+                                  {machineStatus.ofInfo.startDate && (
+                                    <div className="detail-row mb-2">
+                                      <small className="text-muted">
+                                        <i className="fas fa-calendar-plus me-1"></i>Inicio OF:
+                                      </small>
+                                      <small className="ms-1">{machineStatus.ofInfo.startDate}</small>
+                                    </div>
+                                  )}
+
+                                  {/* Tempo de duração da OF */}
+                                  {machineStatus.ofInfo.durationMinutes > 0 && (
+                                    <div className="detail-row mb-2">
+                                      <small className="text-muted">
+                                        <i className="fas fa-clock me-1"></i>Duración OF:
+                                      </small>
+                                      <small className="ms-1">{machineStatus.ofInfo.durationMinutes} min</small>
+                                    </div>
+                                  )}
+
+                                  {/* Tempo de paros */}
+                                  {machineStatus.ofInfo.parosMinutes > 0 && (
+                                    <div className="detail-row mb-2">
+                                      <small className="text-muted">
+                                        <i className="fas fa-pause-circle me-1"></i>Paros:
+                                      </small>
+                                      <small className="text-warning ms-1">{machineStatus.ofInfo.parosMinutes} min</small>
+                                    </div>
+                                  )}
+
+                                  {/* Fecha fin estimada */}
+                                  {machineStatus.ofInfo.estimatedFinishDate && (
+                                    <div className="detail-row mb-2">
+                                      <small className="text-muted">
+                                        <i className="fas fa-calendar-check me-1"></i>Fin Estimado:
+                                      </small>
+                                      <small className="ms-1">{machineStatus.ofInfo.estimatedFinishDate}</small>
+                                    </div>
+                                  )}
+
+                                  {/* Barra de progresso do tempo restante */}
+                                  {machineStatus.productionOF.remainingPieces > 0 && (
+                                    <div className="detail-row mb-2">
+                                      <small className="text-muted">
+                                        <i className="fas fa-hourglass-half me-1"></i>Tiempo Restante:
+                                      </small>
+                                      <div className="progress mt-1" style={{ height: '4px', width: '100%' }}>
+                                        <div
+                                          className="progress-bar bg-info"
+                                          style={{
+                                            width: `${Math.min(100, (machineStatus.productionOF.remainingPieces / (machineStatus.productionOF.remainingPieces + machineStatus.production.ok)) * 100)}%`
+                                          }}
+                                        />
+                                      </div>
+                                      <small className="ms-2">{machineStatus.productionOF.remainingTime}</small>
+                                    </div>
+                                  )}
+                                </>
+                              )}
+
+                              {/* Novos campos conforme contrato de dados */}
+                              <div className="mt-2 small text-muted d-grid gap-1">
+                                {/* Velocidad */}
+                                <div className="d-flex justify-content-between">
+                                  <span className="fw-semibold">Velocidad</span>
+                                  <span>
+                                    {/* u/h = (3600 / seg/peça) se seg/peça > 0 */}
+                                    {machineStatus.rt_tiempo_pieza > 0
+                                      ? `${Math.round(3600 / machineStatus.rt_tiempo_pieza)} u/h`
+                                      : '— u/h'}{" "}
+                                    · {machineStatus.rt_tiempo_pieza?.toFixed(2) ?? '—'} seg/pza
+                                  </span>
+                                </div>
+
+                                {/* Rendimiento */}
+                                <div className="d-flex justify-content-between">
+                                  <span className="fw-semibold">Rendimiento</span>
+                                  <span>
+                                    Turno: {(machineStatus.rendimiento ?? 0).toFixed(1)}% · OF: {(machineStatus.rendimiento_of ?? 0).toFixed(1)}%
+                                  </span>
+                                </div>
+
+                                {/* OEE Turno */}
+                                <div className="d-flex justify-content-between">
+                                  <span className="fw-semibold">OEE Turno</span>
+                                  <span className={Number(machineStatus.oee_turno) >= 65 ? 'text-success' : 'text-warning'}>
+                                    {(machineStatus.oee_turno ?? 0).toFixed(1)}%
+                                  </span>
+                                </div>
+
+                                {/* Planif./Prod. */}
+                                <div className="d-flex justify-content-between">
+                                  <span className="fw-semibold">Planif./Prod.</span>
+                                  <span>
+                                    Plan: {machineStatus.Rt_Unidades_planning?.toLocaleString('es-ES') ?? 0} ·{" "}
+                                    {machineStatus.rt_Unidades_ok?.toLocaleString('es-ES') ?? 0}
+                                    {" / "}
+                                    <span className="text-danger">{machineStatus.rt_Unidades_nok?.toLocaleString('es-ES') ?? 0}</span>
+                                    {" / "}
+                                    <span className="text-warning">{machineStatus.rt_Unidades_rw?.toLocaleString('es-ES') ?? 0}</span>
+                                  </span>
+                                </div>
+
+                                {/* Fechas */}
+                                <div className="d-flex justify-content-between">
+                                  <span className="fw-semibold">Inicio</span>
+                                  <span>{machineStatus.rt_fecha_inicio ? new Date(machineStatus.rt_fecha_inicio).toLocaleString('es-ES') : '—'}</span>
+                                </div>
+                                <div className="d-flex justify-content-between">
+                                  <span className="fw-semibold">Fin estimado</span>
+                                  <span>{machineStatus.rt_fecha_fin_estimada ? new Date(machineStatus.rt_fecha_fin_estimada).toLocaleString('es-ES') : '—'}</span>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>

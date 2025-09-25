@@ -50,7 +50,7 @@ const whalesConfig: any = {
     type: 'default' as const,
     options: {
       userName: 'sa',
-      password: '87cc88bb89.',
+      password: 'Mapexdd2017',
     },
   },
   options: {
@@ -105,63 +105,93 @@ export async function executeQuery<T = any>(
   parameters?: { [key: string]: any },
   database: 'mapex' | 'sage' | 'whales' = 'mapex'
 ): Promise<T[]> {
-  const conn = await getDbConnection(database);
+  console.log(`🔍 Executando query ${database.toUpperCase()}...`);
+  console.log('SQL:', sql.substring(0, 300) + (sql.length > 300 ? '...' : ''));
 
-  return new Promise((resolve, reject) => {
-    const results: T[] = [];
+  try {
+    const conn = await getDbConnection(database);
+    console.log(`✅ Conexão ${database.toUpperCase()} criada com sucesso`);
 
-    const request = new Request(sql, (err) => {
-      // Sempre fechar a conexão após completar a query
-      try {
-        conn.close();
-      } catch (closeErr) {
-        console.warn('⚠️ Erro ao fechar conexão:', closeErr);
-      }
+    return new Promise((resolve, reject) => {
+      const results: T[] = [];
 
-      if (err) {
-        console.error(`❌ Erro na query ${database.toUpperCase()}:`, err);
-        console.error('SQL:', sql.substring(0, 200) + '...');
-        reject(err);
-      } else {
-        resolve(results);
-      }
-    });
-
-    // Adicionar parâmetros se fornecidos
-    if (parameters) {
-      Object.entries(parameters).forEach(([key, value]) => {
-        let type: any = TYPES.NVarChar;
-        if (typeof value === 'number') {
-          type = Number.isInteger(value) ? TYPES.Int : TYPES.Float;
-        } else if (typeof value === 'boolean') {
-          type = TYPES.Bit;
-        } else if (value instanceof Date) {
-          type = TYPES.DateTime;
+      const request = new Request(sql, (err) => {
+        // Sempre fechar a conexão após completar a query
+        try {
+          conn.close();
+          console.log(`✅ Conexão ${database.toUpperCase()} fechada`);
+        } catch (closeErr) {
+          console.warn('⚠️ Erro ao fechar conexão:', closeErr);
         }
-        request.addParameter(key, type, value);
-      });
-    }
 
-    request.on('row', (columns: any) => {
-      const row: any = {};
-      columns.forEach((column: any) => {
-        row[column.metadata.colName] = column.value;
+        if (err) {
+          console.error(`❌ Erro na query ${database.toUpperCase()}:`, err);
+          console.error('Código de erro:', (err as any).code);
+          console.error('Estado:', (err as any).state);
+          console.error('Classe:', (err as any).class);
+          console.error('Número:', (err as any).number);
+          console.error('Procedimento:', (err as any).procName);
+          console.error('Linha:', (err as any).lineNumber);
+          reject(err);
+        } else {
+          console.log(`✅ Query ${database.toUpperCase()} executada com sucesso. ${results.length} registros retornados.`);
+          resolve(results);
+        }
       });
-      results.push(row);
-    });
 
-    try {
-      conn.execSql(request);
-    } catch (execErr) {
-      // Se houver erro na execução, fechar conexão e rejeitar
-      try {
-        conn.close();
-      } catch (closeErr) {
-        console.warn('⚠️ Erro ao fechar conexão após falha:', closeErr);
+      // Adicionar parâmetros se fornecidos
+      if (parameters) {
+        console.log(`📋 Adicionando parâmetros:`, Object.keys(parameters));
+        Object.entries(parameters).forEach(([key, value]) => {
+          let type: any = TYPES.NVarChar;
+          if (typeof value === 'number') {
+            type = Number.isInteger(value) ? TYPES.Int : TYPES.Float;
+          } else if (typeof value === 'boolean') {
+            type = TYPES.Bit;
+          } else if (value instanceof Date) {
+            type = TYPES.DateTime;
+          }
+          request.addParameter(key, type, value);
+        });
       }
-      reject(execErr);
-    }
-  });
+
+      request.on('row', (columns: any) => {
+        const row: any = {};
+        columns.forEach((column: any) => {
+          row[column.metadata.colName] = column.value;
+        });
+        results.push(row);
+      });
+
+      // Adicionar tratamento para erros durante a execução
+      request.on('error', (err) => {
+        console.error(`❌ Erro durante execução da query ${database.toUpperCase()}:`, err);
+        try {
+          conn.close();
+        } catch (closeErr) {
+          console.warn('⚠️ Erro ao fechar conexão após erro:', closeErr);
+        }
+        reject(err);
+      });
+
+      try {
+        console.log(`🚀 Executando SQL em ${database.toUpperCase()}...`);
+        conn.execSql(request);
+      } catch (execErr) {
+        console.error(`❌ Erro ao executar SQL em ${database.toUpperCase()}:`, execErr);
+        // Se houver erro na execução, fechar conexão e rejeitar
+        try {
+          conn.close();
+        } catch (closeErr) {
+          console.warn('⚠️ Erro ao fechar conexão após falha:', closeErr);
+        }
+        reject(execErr);
+      }
+    });
+  } catch (error) {
+    console.error(`❌ Erro ao criar conexão para ${database.toUpperCase()}:`, error);
+    throw error;
+  }
 }
 
 export async function closeDbConnection(database?: 'mapex' | 'sage' | 'whales'): Promise<void> {

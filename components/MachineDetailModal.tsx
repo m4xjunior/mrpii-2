@@ -2,8 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { MachineStatus } from '../types/machine';
-import HistoricalCharts from './HistoricalCharts';
-import FinancialDashboard from './FinancialDashboard';
 import ProductionCounter from './ProductionCounter';
 import MachineProductionChart from './MachineProductionChart';
 import HistoricalProductionChart from './HistoricalProductionChart';
@@ -22,20 +20,16 @@ interface MachineDetailModalProps {
 export default function MachineDetailModal({ machine, isOpen, onClose }: MachineDetailModalProps) {
   const { isDark, themeColors } = useTheme();
   const { isMobile, isTablet, getSpacing, getFontSize, getBreakpointStyles, getGridCols } = useResponsiveLayout();
-  const [activeTab, setActiveTab] = useState('graficos');
+  const [activeTab, setActiveTab] = useState('oee');
   const [tabData, setTabData] = useState<any>(null);
-  const [historicalData, setHistoricalData] = useState<any>(null);
-  const [financialData, setFinancialData] = useState<any>(null);
-  const [insightsData, setInsightsData] = useState<any>(null);
   const [oeeData, setOeeData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [historicalLoading, setHistoricalLoading] = useState(false);
-  const [financialLoading, setFinancialLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'cards' | 'stats'>('cards');
   const [filterType, setFilterType] = useState<string>('all');
   const [filterDuration, setFilterDuration] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('fecha');
-  const [selectedMachineForChart, setSelectedMachineForChart] = useState<string>(machine?.machine?.Cod_maquina || '');
+  const [shiftData, setShiftData] = useState<any>(null);
+  const [shiftLoading, setShiftLoading] = useState(false);
 
   // Hook para dados OEE - deve estar no nível superior
   const { data: oeeHookData, loading: oeeHookLoading, error: oeeHookError } = useOEEData(
@@ -47,20 +41,14 @@ export default function MachineDetailModal({ machine, isOpen, onClose }: Machine
   useEffect(() => {
     if (isOpen && machine) {
       fetchTabData(activeTab);
-      if (!historicalData) {
-        fetchHistoricalData();
-      }
-      if (!financialData) {
-        fetchFinancialData();
-      }
-      if (!insightsData) {
-        fetchInsightsData();
-      }
       if (!oeeData) {
         fetchOeeData();
       }
+      if (!shiftData && machine.currentOF && machine.currentOF !== '--') {
+        fetchShiftData();
+      }
     }
-  }, [isOpen, machine]);
+  }, [isOpen, machine, activeTab]);
 
   useEffect(() => {
     if (isOpen && machine && activeTab === 'oee' && !oeeData) {
@@ -93,64 +81,6 @@ export default function MachineDetailModal({ machine, isOpen, onClose }: Machine
     }
   };
 
-  const fetchHistoricalData = async () => {
-    if (!machine) return;
-
-    setHistoricalLoading(true);
-    try {
-      const response = await fetch(`/api/oee/historical?machineId=${machine.machine.Cod_maquina}&days=30&aggregation=day&tab=historico`);
-      const result = await response.json();
-      if (result.success) {
-        setHistoricalData(result.data);
-      }
-    } catch (error) {
-      console.error('Error obteniendo datos históricos:', error);
-    } finally {
-      setHistoricalLoading(false);
-    }
-  };
-
-  const fetchFinancialData = async () => {
-    if (!machine) return;
-
-    setFinancialLoading(true);
-    try {
-      const [historicalResponse, insightsResponse] = await Promise.all([
-        fetch(`/api/analytics/historical?machineId=${machine.machine.Cod_maquina}&days=30&tab=financiero`),
-        fetch(`/api/analytics/insights?machineId=${machine.machine.Cod_maquina}&tab=insights`)
-      ]);
-
-      const [historicalResult, insightsResult] = await Promise.all([
-        historicalResponse.json(),
-        insightsResponse.json()
-      ]);
-
-      if (historicalResult.success && insightsResult.success) {
-        setFinancialData({
-          historical: historicalResult.data,
-          insights: insightsResult.data
-        });
-      }
-    } catch (error) {
-      console.error('Error obteniendo datos financieros:', error);
-    } finally {
-      setFinancialLoading(false);
-    }
-  };
-
-  const fetchInsightsData = async () => {
-    if (!machine) return;
-
-    try {
-      const response = await fetch(`/api/analytics/insights?machineId=${machine.machine.Cod_maquina}&tab=insights`);
-      const result = await response.json();
-      if (result.success) {
-        setInsightsData(result.data);
-      }
-    } catch (error) {
-      console.error('Error obteniendo insights:', error);
-    }
-  };
 
   const fetchOeeData = async () => {
     if (!machine) return;
@@ -166,21 +96,32 @@ export default function MachineDetailModal({ machine, isOpen, onClose }: Machine
     }
   };
 
+  const fetchShiftData = async () => {
+    if (!machine || !machine.currentOF || machine.currentOF === '--') return;
+
+    setShiftLoading(true);
+    try {
+      const response = await fetch(`/api/analytics/shifts?cod_maquina=${machine.machine.Cod_maquina}&cod_of=${machine.currentOF}`);
+      const result = await response.json();
+      if (result.success) {
+        setShiftData(result.data);
+      }
+    } catch (error) {
+      console.error('Error obteniendo datos por turno:', error);
+    } finally {
+      setShiftLoading(false);
+    }
+  };
+
   if (!isOpen || !machine) return null;
+
 
   const tabs = [
     { id: 'resumen', label: 'Resumen', icon: 'fas fa-dashboard' },
     { id: 'of', label: 'OF Actual', icon: 'fas fa-clipboard-list' },
     { id: 'paros', label: 'Paradas', icon: 'fas fa-pause-circle' },
     { id: 'produccion', label: 'Producción', icon: 'fas fa-chart-line' },
-    { id: 'oee', label: 'OEE', icon: 'fas fa-tachometer-alt' },
-    { id: 'historico', label: 'Histórico', icon: 'fas fa-history' },
-    { id: 'graficos', label: 'Gráficos', icon: 'fas fa-chart-area' },
-    { id: 'financiero', label: 'Análisis €', icon: 'fas fa-euro-sign' },
-    { id: 'insights', label: 'Insights IA', icon: 'fas fa-lightbulb' },
-    { id: 'gestion', label: 'Gestión', icon: 'fas fa-cogs' },
-    { id: 'pedidos', label: 'Pedidos', icon: 'fas fa-shopping-cart' },
-    { id: 'ventas', label: 'Ventas', icon: 'fas fa-dollar-sign' }
+    { id: 'oee', label: 'OEE', icon: 'fas fa-tachometer-alt' }
   ];
 
   const modalBackdrop = 'rgba(0, 0, 0, 0.75)';
@@ -330,119 +271,119 @@ export default function MachineDetailModal({ machine, isOpen, onClose }: Machine
   );
 
   return (
-    <div
-      className="modal fade show"
-      style={modalStyles.backdrop}
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="modal-title"
-    >
       <div
-        className="modal-dialog modal-lg"
-        onClick={(e) => e.stopPropagation()}
-        style={modalStyles.dialog}
+        className="modal fade show"
+        style={modalStyles.backdrop}
+        onClick={onClose}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
       >
-        <div className="modal-content" style={modalStyles.content}>
+        <div
+          className="modal-dialog modal-lg"
+          onClick={(e) => e.stopPropagation()}
+          style={modalStyles.dialog}
+        >
+          <div className="modal-content" style={modalStyles.content}>
           {/* Header - Sticky */}
-          <div className="modal-header" style={modalStyles.header}>
+            <div className="modal-header" style={modalStyles.header}>
             <div className="d-flex align-items-center w-100">
-              <div style={modalStyles.iconBox}>
+                <div style={modalStyles.iconBox}>
                 <i className="fas fa-cog" style={{ fontSize: '24px', color: '#ffffff' }}></i>
-              </div>
+                </div>
               <div className="flex-grow-1 ms-3">
                 <h3 id="modal-title" className="modal-title mb-0" style={{ fontWeight: 600, fontSize: '20px', lineHeight: '1.2' }}>
-                  {machine.machine.Cod_maquina}
-                </h3>
+                    {machine.machine.Cod_maquina}
+                  </h3>
                 {!isMobile && (
                   <p className="mb-0 mt-1" style={{ fontSize: '14px', opacity: 0.9 }}>
                     {machine.machine.desc_maquina}
                   </p>
                 )}
+                </div>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  style={modalStyles.closeButton}
+                  aria-label="Cerrar"
+                >
+                  <i className="fas fa-times"></i>
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={onClose}
-                style={modalStyles.closeButton}
-                aria-label="Cerrar"
-              >
-                <i className="fas fa-times"></i>
-              </button>
             </div>
-          </div>
 
           {/* Status Header - Sticky */}
-          <div style={modalStyles.statusHeader}>
-            <div className="row g-3">
-              {[
-                {
-                  icon: 'fas fa-circle',
-                  value: getStatusText(machine.status),
+            <div style={modalStyles.statusHeader}>
+              <div className="row g-3">
+                {[
+                  {
+                    icon: 'fas fa-circle',
+                    value: getStatusText(machine.status),
                   label: 'Estado',
-                  color: machine.status === 'PRODUCIENDO' ? themeColors.success :
-                         machine.status === 'ACTIVA' ? themeColors.info :
-                         machine.status === 'MANTENIMIENTO' ? themeColors.warning : themeColors.error,
+                    color: machine.status === 'PRODUCIENDO' ? themeColors.success :
+                           machine.status === 'ACTIVA' ? themeColors.info :
+                           machine.status === 'MANTENIMIENTO' ? themeColors.warning : themeColors.error,
                   chartData: generateTrendData(7, 65, 95)
-                },
-                {
+                  },
+                  {
                   icon: 'fas fa-check',
-                  value: machine.production.ok.toLocaleString('es-ES'),
+                    value: machine.production.ok.toLocaleString('es-ES'),
                   label: 'Piezas OK',
-                  color: themeColors.success,
+                    color: themeColors.success,
                   chartData: generateTrendData(7, machine.production.ok - 50, machine.production.ok + 50)
-                },
-                {
+                  },
+                  {
                   icon: 'fas fa-times',
-                  value: machine.production.nok.toLocaleString('es-ES'),
+                    value: machine.production.nok.toLocaleString('es-ES'),
                   label: 'Piezas NOK',
-                  color: themeColors.error,
+                    color: themeColors.error,
                   chartData: generateTrendData(7, Math.max(0, machine.production.nok - 20), machine.production.nok + 30)
-                },
-                {
+                  },
+                  {
                   icon: 'fas fa-percentage',
-                  value: `${machine.efficiency}%`,
+                    value: `${machine.efficiency}%`,
                   label: 'Eficiencia',
-                  color: machine.efficiency >= 80 ? themeColors.success :
-                         machine.efficiency >= 60 ? themeColors.warning : themeColors.error,
+                    color: machine.efficiency >= 80 ? themeColors.success :
+                           machine.efficiency >= 60 ? themeColors.warning : themeColors.error,
                   chartData: generateTrendData(7, Math.max(0, machine.efficiency - 15), Math.min(100, machine.efficiency + 10))
-                }
-              ].map((metric, index) => (
-                <div key={index} className={`col-${getGridCols(6, 6, 3)}`}>
+                  }
+                ].map((metric, index) => (
+                  <div key={index} className={`col-${getGridCols(6, 6, 3)}`}>
                   <div style={modalStyles.metricCard}>
-                    <div className="d-flex align-items-start justify-content-between">
-                      <div className="flex-grow-1">
+                      <div className="d-flex align-items-start justify-content-between">
+                        <div className="flex-grow-1">
                         <div style={{ ...modalStyles.metricIcon, backgroundColor: `${metric.color}15` }}>
-                          <i className={metric.icon} style={{ color: metric.color }}></i>
-                        </div>
+                            <i className={metric.icon} style={{ color: metric.color }}></i>
+                          </div>
                         <div style={{ fontSize: '24px', fontWeight: 700, color: metric.color, marginBottom: '4px' }}>
-                          {metric.value}
-                        </div>
+                            {metric.value}
+                          </div>
                         <div style={{ fontSize: '12px', color: isDark ? '#999' : '#666', fontWeight: 400 }}>
-                          {metric.label}
+                            {metric.label}
+                          </div>
                         </div>
-                      </div>
                       <div style={{ width: '80px', height: '40px', opacity: 0.7 }}>
-                        <MiniLineChart
-                          data={metric.chartData}
-                          color={metric.color}
+                          <MiniLineChart
+                            data={metric.chartData}
+                            color={metric.color}
                           height={40}
-                          isDark={isDark}
-                        />
+                            isDark={isDark}
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
 
           {/* Tabs Navigation - Sticky */}
-          <div style={modalStyles.tabsNav}>
+            <div style={modalStyles.tabsNav}>
             <div className="d-flex" style={{ gap: '4px' }}>
               {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
                   style={modalStyles.tabButton(activeTab === tab.id)}
                 >
                   <i className={`${tab.icon} ${isMobile ? '' : 'me-2'}`} style={{ fontSize: '14px' }}></i>
@@ -450,20 +391,20 @@ export default function MachineDetailModal({ machine, isOpen, onClose }: Machine
                   {isMobile && <span className="d-block" style={{ fontSize: '10px', marginTop: '4px' }}>
                     {tab.label.split(' ')[0].substring(0, 4)}
                   </span>}
-                </button>
-              ))}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
 
           {/* Tab Content - Scrollable */}
-          <div style={modalStyles.tabContent}>
-            {loading && ['of', 'paros', 'produccion', 'oee', 'pedidos', 'ventas'].includes(activeTab) ? (
-              <div className="py-5">
-                <SkeletonLoader />
-              </div>
-            ) : (
-              renderTabContent(activeTab, tabData, historicalData, financialData, insightsData, oeeData, historicalLoading, financialLoading, machine, viewMode, setViewMode, filterType, setFilterType, filterDuration, setFilterDuration, sortBy, setSortBy, selectedMachineForChart, setSelectedMachineForChart, isDark, themeColors, isMobile, isTablet, getGridCols, oeeHookData, oeeHookLoading)
-            )}
+            <div style={modalStyles.tabContent}>
+                {loading && ['of', 'paros', 'produccion', 'oee'].includes(activeTab) ? (
+                  <div className="py-5">
+                    <SkeletonLoader />
+                  </div>
+                ) : (
+                  renderTabContent(activeTab, tabData, oeeData, machine, viewMode, setViewMode, filterType, setFilterType, filterDuration, setFilterDuration, sortBy, setSortBy, isDark, themeColors, isMobile, isTablet, getGridCols, oeeHookData, oeeHookLoading, shiftData, shiftLoading)
+                )}
           </div>
 
           {/* Footer - Sticky */}
@@ -529,7 +470,7 @@ function getStatusText(status: string) {
   }
 }
 
-function renderTabContent(tab: string, data: any, historicalData: any, financialData: any, insightsData: any, oeeData: any, historicalLoading: boolean, financialLoading: boolean, machine: any, viewMode: string, setViewMode: Function, filterType: string, setFilterType: Function, filterDuration: string, setFilterDuration: Function, sortBy: string, setSortBy: Function, selectedMachineForChart: string, setSelectedMachineForChart: Function, isDark: boolean, themeColors: any, isMobile: boolean, isTablet: boolean, getGridCols: Function, oeeHookData?: any, oeeHookLoading?: boolean) {
+function renderTabContent(tab: string, data: any, oeeData: any, machine: any, viewMode: string, setViewMode: Function, filterType: string, setFilterType: Function, filterDuration: string, setFilterDuration: Function, sortBy: string, setSortBy: Function, isDark: boolean, themeColors: any, isMobile: boolean, isTablet: boolean, getGridCols: Function, oeeHookData?: any, oeeHookLoading?: boolean, shiftData?: any, shiftLoading?: boolean, refreshNightShiftCache?: (event?: React.MouseEvent<HTMLButtonElement>) => Promise<void>) {
   
   const tableStyles = {
     wrapper: {
@@ -592,7 +533,7 @@ function renderTabContent(tab: string, data: any, historicalData: any, financial
 
   switch (tab) {
     case 'resumen':
-      return renderResumenContent(machine, historicalData, insightsData, isDark, themeColors, isMobile, isTablet, getGridCols, cardStyles);
+      return renderResumenContent(machine, isDark, themeColors, isMobile, isTablet, getGridCols, cardStyles, shiftData, shiftLoading || false, refreshNightShiftCache);
     case 'of':
       return data ? renderOFContent(data, themeColors, cardStyles) : renderNoData(themeColors);
     case 'paros':
@@ -601,79 +542,6 @@ function renderTabContent(tab: string, data: any, historicalData: any, financial
       return <ProduccionContent data={data} themeColors={themeColors} isDark={isDark} machineId={machine?.machine?.Cod_maquina || ''} />;
     case 'oee':
       return renderOEEContent(data, themeColors, tableStyles, isDark, machine?.machine, oeeHookData, oeeHookLoading);
-    case 'historico':
-      return data ? renderHistoricoContent(data, themeColors, tableStyles, isDark) : renderNoData(themeColors);
-    case 'graficos':
-      return (
-        <div>
-          <div style={{ ...cardStyles.card, padding: '16px', marginBottom: '24px' }}>
-            <div className="row align-items-center">
-              <div className="col-md-6">
-                <label className="form-label mb-2" style={{ fontSize: '13px', fontWeight: 600, color: isDark ? '#b0b0b0' : '#555' }}>
-                  <i className="fas fa-industry me-2" style={{ color: themeColors.primary }}></i>
-                  Seleccionar Máquina para Análisis:
-                </label>
-                <select
-                  className="form-select"
-                  value={selectedMachineForChart}
-                  onChange={(e) => setSelectedMachineForChart(e.target.value)}
-                  style={{
-                    background: isDark ? '#1a1a1a' : '#ffffff',
-                    border: `1px solid ${isDark ? '#404040' : '#d0d0d0'}`,
-                    color: isDark ? '#e0e0e0' : '#333',
-                    borderRadius: '8px',
-                    fontSize: '14px'
-                  }}
-                >
-                  <option value={machine?.machine?.Cod_maquina}>
-                    {machine?.machine?.Cod_maquina} - {machine?.machine?.desc_maquina} (Actual)
-                  </option>
-                  <option value="ALL">Todas las Máquinas (Comparativo)</option>
-                  <option value="M001">M001 - Torno CNC Principal</option>
-                  <option value="M002">M002 - Fresadora Universal</option>
-                  <option value="M003">M003 - Centro Mecanizado</option>
-                  <option value="M004">M004 - Rectificadora</option>
-                </select>
-              </div>
-              <div className="col-md-6">
-                <div className="d-flex flex-wrap gap-2 mt-2 mt-md-4">
-                  <span style={{
-                    background: `${themeColors.success}15`,
-                    color: themeColors.success,
-                    padding: '6px 12px',
-                    borderRadius: '20px',
-                    fontSize: '12px',
-                    fontWeight: 500
-                  }}>
-                    <i className="fas fa-sync-alt me-1"></i>
-                    Auto-actualización
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <HistoricalCharts
-              machineId={selectedMachineForChart === 'ALL' ? undefined : selectedMachineForChart}
-              data={historicalData}
-              isLoading={historicalLoading}
-              isDark={isDark}
-              themeColors={themeColors}
-            />
-          </div>
-        </div>
-      );
-    case 'financiero':
-      return <FinancialDashboard data={financialData} isLoading={financialLoading} machineId={machine?.machine?.Cod_maquina} isDark={isDark} themeColors={themeColors} />;
-    case 'insights':
-      return renderInsightsContent(insightsData, themeColors, cardStyles, isDark);
-    case 'gestion':
-      return renderGestionContent(machine, themeColors, cardStyles, isDark);
-    case 'pedidos':
-      return data ? renderPedidosContent(data, themeColors, tableStyles, isDark) : renderNoData(themeColors);
-    case 'ventas':
-      return data ? renderVentasContent(data, themeColors, tableStyles, isDark) : renderNoData(themeColors);
     default:
       return <div style={{ color: themeColors.text }}>Sección no implementada</div>;
   }
@@ -802,39 +670,25 @@ function renderParosContent(data: any, viewMode: string, setViewMode: Function, 
 }
 
 // Componente separado para el contenido de producción
-function ProduccionContent({ data, themeColors, isDark, machineId }: { data: any[]; themeColors: any; isDark: boolean; machineId: string }) {
-  const [productionData, setProductionData] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [currentMachineData, setCurrentMachineData] = useState<any>(null);
+function ProduccionContent({ data, themeColors, isDark, machineId }: { data: any; themeColors: any; isDark: boolean; machineId: string }) {
+  // Usar dados que já foram carregados pelo componente pai com a nova estrutura da API
+  const currentMachineData = data ? {
+    machineId: machineId,
+    machineName: data.machine?.Desc_maquina || machineId,
+    ok: data.production?.ok || 0,
+    nok: data.production?.nok || 0,
+    rw: data.production?.rw || 0,
+    efficiency: data.efficiency || 0,
+    total: data.production?.total || 0,
+    of_actual: data.of?.Rt_Cod_of || 'N/A',
+    producto_actual: data.of?.Rt_Desc_producto || 'N/A',
+    operator: data.operator || 'N/A',
+    shift: data.shift || 'N/A',
+    timestamp: new Date().toISOString(),
+    historical: data.historical || []
+  } : null;
 
-  useEffect(() => {
-    fetchProductionData();
-    const interval = setInterval(fetchProductionData, 30000); // Actualizar cada 30 segundos
-    return () => clearInterval(interval);
-  }, [machineId]);
-
-  const fetchProductionData = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch('/api/scada/production');
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          setProductionData(result.data || []);
-          
-          // Filtrar datos de la máquina actual
-          const machineData = result.data.find((machine: any) => machine.machineId === machineId);
-          setCurrentMachineData(machineData || null);
-        }
-      }
-    } catch (error) {
-      console.error('Error al obtener datos de producción:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  if (isLoading && productionData.length === 0) {
+  if (!data) {
     return (
       <div className="text-center p-5">
         <div className="spinner-border" style={{ color: themeColors.primary, width: '3rem', height: '3rem' }} role="status">
@@ -924,13 +778,14 @@ function ProduccionContent({ data, themeColors, isDark, machineId }: { data: any
           }}>
             <h5 className="mb-3" style={{ fontSize: '16px', fontWeight: 600, color: isDark ? '#e0e0e0' : '#333' }}>
               <i className="fas fa-chart-bar me-2" style={{ color: themeColors.primary }}></i>
-              Comparativa de Producción (Últimos 30 días)
+              Gráfico de Producción (Dados da mesma API do Resumen)
             </h5>
-            <MachineProductionChart
-              data={productionData}
-              onMachineClick={() => {}}
-              highlightMachine={machineId}
-            />
+            <div className="text-center py-4">
+              <i className="fas fa-info-circle mb-2" style={{ fontSize: '24px', color: themeColors.info }}></i>
+              <p style={{ color: isDark ? '#b0b0b0' : '#666', fontSize: '14px' }}>
+                Gráfico temporariamente indisponível - Usando dados consistentes da API de Resumen
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -1070,120 +925,8 @@ function renderOEEContent(data: any, themeColors: any, tableStyles: any, isDark:
   );
 }
 
-function renderPedidosContent(data: any[], themeColors: any, tableStyles: any, isDark: boolean) {
-  return (
-    <div className="table-responsive" style={tableStyles.wrapper}>
-      <table className="table table-hover" style={tableStyles.table}>
-        <thead style={tableStyles.thead}>
-          <tr>
-            <th style={tableStyles.th}>Código</th>
-            <th style={tableStyles.th}>Producto</th>
-            <th style={{ ...tableStyles.th, textAlign: 'right' }}>Cantidad</th>
-            <th style={{ ...tableStyles.th, textAlign: 'right' }}>Entregado</th>
-            <th style={{ ...tableStyles.th, textAlign: 'center' }}>Fecha</th>
-            <th style={{ ...tableStyles.th, textAlign: 'center' }}>Estado</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((pedido: any, index: number) => (
-            <tr key={index} style={{ background: index % 2 === 0 ? (isDark ? '#1f1f1f' : '#fafafa') : 'transparent' }}>
-              <td style={tableStyles.td}>{pedido.cod_pedido}</td>
-              <td style={tableStyles.td}>{pedido.desc_produto}</td>
-              <td style={{ ...tableStyles.td, textAlign: 'right', fontFamily: 'monospace' }}>{pedido.cantidad_pedido}</td>
-              <td style={{ ...tableStyles.td, textAlign: 'right', fontFamily: 'monospace' }}>{pedido.cantidad_entregada}</td>
-              <td style={{ ...tableStyles.td, textAlign: 'center' }}>{new Date(pedido.fecha_pedido).toLocaleDateString('es-ES')}</td>
-              <td style={{ ...tableStyles.td, textAlign: 'center' }}>
-                <span style={{
-                  ...tableStyles.badge,
-                  ...getPedidoStatusStyle(pedido.estado_pedido)
-                }}>
-                  {pedido.estado_pedido}
-                </span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
 
-function renderHistoricoContent(data: any[], themeColors: any, tableStyles: any, isDark: boolean) {
-  return (
-    <div className="table-responsive" style={tableStyles.wrapper}>
-      <table className="table table-hover" style={tableStyles.table}>
-        <thead style={tableStyles.thead}>
-          <tr>
-            <th style={tableStyles.th}>Fecha</th>
-            <th style={{ ...tableStyles.th, textAlign: 'right' }}>Total OK</th>
-            <th style={{ ...tableStyles.th, textAlign: 'right' }}>Total NOK</th>
-            <th style={{ ...tableStyles.th, textAlign: 'right' }}>Total RW</th>
-            <th style={{ ...tableStyles.th, textAlign: 'right' }}>Eficiencia</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((hist: any, index: number) => (
-            <tr key={index} style={{ background: index % 2 === 0 ? (isDark ? '#1f1f1f' : '#fafafa') : 'transparent' }}>
-              <td style={tableStyles.td}>{new Date(hist.fecha).toLocaleDateString('es-ES')}</td>
-              <td style={{ ...tableStyles.td, textAlign: 'right', fontFamily: 'monospace', color: themeColors.success }}>
-                {hist.total_ok}
-              </td>
-              <td style={{ ...tableStyles.td, textAlign: 'right', fontFamily: 'monospace', color: themeColors.error }}>
-                {hist.total_nok}
-              </td>
-              <td style={{ ...tableStyles.td, textAlign: 'right', fontFamily: 'monospace', color: themeColors.warning }}>
-                {hist.total_rw}
-              </td>
-              <td style={{ ...tableStyles.td, textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: getOEEColor(hist.eficiencia_diaria, themeColors) }}>
-                {Math.round(hist.eficiencia_diaria)}%
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
 
-function renderVentasContent(data: any[], themeColors: any, tableStyles: any, isDark: boolean) {
-  return (
-    <div className="table-responsive" style={tableStyles.wrapper}>
-      <table className="table table-hover" style={tableStyles.table}>
-        <thead style={tableStyles.thead}>
-          <tr>
-            <th style={tableStyles.th}>Código</th>
-            <th style={tableStyles.th}>Cliente</th>
-            <th style={tableStyles.th}>Producto</th>
-            <th style={{ ...tableStyles.th, textAlign: 'right' }}>Cantidad</th>
-            <th style={{ ...tableStyles.th, textAlign: 'right' }}>Valor</th>
-            <th style={{ ...tableStyles.th, textAlign: 'center' }}>Fecha</th>
-            <th style={{ ...tableStyles.th, textAlign: 'center' }}>Entrega</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((venta: any, index: number) => (
-            <tr key={index} style={{ background: index % 2 === 0 ? (isDark ? '#1f1f1f' : '#fafafa') : 'transparent' }}>
-              <td style={tableStyles.td}>{venta.cod_venta}</td>
-              <td style={tableStyles.td}>{venta.cliente}</td>
-              <td style={tableStyles.td}>{venta.produto}</td>
-              <td style={{ ...tableStyles.td, textAlign: 'right', fontFamily: 'monospace' }}>{venta.cantidad}</td>
-              <td style={{ ...tableStyles.td, textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>€{venta.valor_venta}</td>
-              <td style={{ ...tableStyles.td, textAlign: 'center' }}>{new Date(venta.fecha_venta).toLocaleDateString('es-ES')}</td>
-              <td style={{ ...tableStyles.td, textAlign: 'center' }}>
-                <span style={{
-                  ...tableStyles.badge,
-                  ...getEntregaStatusStyle(venta.estado_entrega)
-                }}>
-                  {venta.estado_entrega}
-                </span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
 
 function getOEEColor(value: number, themeColors: any) {
   if (value >= 80) return themeColors.success;
@@ -1191,25 +934,6 @@ function getOEEColor(value: number, themeColors: any) {
   return themeColors.error;
 }
 
-function getPedidoStatusStyle(status: string) {
-  const normalizedStatus = status?.toLowerCase();
-  switch (normalizedStatus) {
-    case 'completado': return { background: '#4caf5020', color: '#4caf50' };
-    case 'en produccion': return { background: '#2196f320', color: '#2196f3' };
-    case 'pendiente': return { background: '#ff980020', color: '#ff9800' };
-    default: return { background: '#9e9e9e20', color: '#9e9e9e' };
-  }
-}
-
-function getEntregaStatusStyle(status: string) {
-  const normalizedStatus = status?.toLowerCase();
-  switch (normalizedStatus) {
-    case 'entregado': return { background: '#4caf5020', color: '#4caf50' };
-    case 'en transito': return { background: '#2196f320', color: '#2196f3' };
-    case 'pendiente': return { background: '#ff980020', color: '#ff9800' };
-    default: return { background: '#9e9e9e20', color: '#9e9e9e' };
-  }
-}
 
 // Función para calcular paradas acumuladas hasta completar 24h
 function calculateParadasHasta24h(downtimeData: any[]) {
@@ -1263,7 +987,7 @@ function calculateParadasHasta24h(downtimeData: any[]) {
 }
 
 // Nuevo tab de resumen con métricas principales
-function renderResumenContent(machine: any, historicalData: any, insightsData: any, isDark: boolean, themeColors: any, isMobile: boolean, isTablet: boolean, getGridCols: Function, cardStyles: any) {
+function renderResumenContent(machine: any, isDark: boolean, themeColors: any, isMobile: boolean, isTablet: boolean, getGridCols: Function, cardStyles: any, shiftData: any, shiftLoading: boolean, refreshNightShiftCache?: (event?: React.MouseEvent<HTMLButtonElement>) => Promise<void>) {
   return (
     <div className="resumen-content">
       <div className="row mb-4">
@@ -1271,9 +995,9 @@ function renderResumenContent(machine: any, historicalData: any, insightsData: a
           { icon: 'fas fa-tachometer-alt', value: `${machine?.efficiency || 0}%`, label: 'OEE Actual', color: themeColors.primary },
           { icon: 'fas fa-check', value: machine?.production?.ok || 0, label: 'Piezas OK', color: themeColors.success },
           { icon: 'fas fa-times', value: machine?.production?.nok || 0, label: 'Piezas NOK', color: themeColors.error },
-          { icon: 'fas fa-clock', value: `${calculateParadasHasta24h(historicalData?.downtime || [])} paradas`, label: 'Paradas Mes', color: themeColors.warning },
-          { icon: 'fas fa-euro-sign', value: `€${((historicalData?.cost_analysis?.[0]?.costo_total_perdidas_euros || 0)).toLocaleString('es-ES')}`, label: 'Pérdidas Mes', color: themeColors.info },
-          { icon: 'fas fa-chart-line', value: historicalData?.summary?.total_production?.toLocaleString('es-ES') || 0, label: 'Prod. Total', color: themeColors.secondary }
+          { icon: 'fas fa-clock', value: `0 paradas`, label: 'Paradas Mes', color: themeColors.warning },
+          { icon: 'fas fa-euro-sign', value: `€0`, label: 'Pérdidas Mes', color: themeColors.info },
+          { icon: 'fas fa-chart-line', value: '0', label: 'Prod. Total', color: themeColors.secondary }
         ].map((metric, index) => (
           <div key={index} className={`col-${getGridCols(6, 4, 2)}`}>
             <div style={{
@@ -1311,8 +1035,8 @@ function renderResumenContent(machine: any, historicalData: any, insightsData: a
               Alertas Activas
             </div>
             <div style={cardStyles.cardBody}>
-              {insightsData?.alertas?.length > 0 ? (
-                insightsData.alertas.slice(0, 3).map((alerta: any, index: number) => (
+              {false ? (
+                [].slice(0, 3).map((alerta: any, index: number) => (
                   <div key={index} style={{
                     padding: '12px',
                     marginBottom: index < 2 ? '8px' : 0,
@@ -1363,8 +1087,8 @@ function renderResumenContent(machine: any, historicalData: any, insightsData: a
               Recomendaciones IA
             </div>
             <div style={cardStyles.cardBody}>
-              {insightsData?.recomendaciones?.length > 0 ? (
-                insightsData.recomendaciones.slice(0, 3).map((rec: any, index: number) => (
+              {false ? (
+                [].slice(0, 3).map((rec: any, index: number) => (
                   <div key={index} style={{
                     padding: '12px',
                     marginBottom: index < 2 ? '8px' : 0,
@@ -1392,77 +1116,265 @@ function renderResumenContent(machine: any, historicalData: any, insightsData: a
           </div>
         </div>
       </div>
-    </div>
-  );
-}
 
-// Tab de insights avanzados con IA
-function renderInsightsContent(insightsData: any, themeColors: any, cardStyles: any, isDark: boolean) {
-  if (!insightsData) {
-    return (
-      <div className="text-center py-5">
-        <div className="spinner-border mb-3" style={{ color: themeColors.primary, width: '3rem', height: '3rem' }}></div>
-        <p style={{ color: themeColors.text, fontSize: '14px' }}>Analizando datos con IA...</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="insights-content">
-      <div className="row mb-4">
+      {/* Dados consolidados da OF */}
+      <div className="row mt-4">
         <div className="col-12">
           <div style={cardStyles.card}>
-            <div style={{ ...cardStyles.cardHeader, background: isDark ? '#2a2a2a' : themeColors.primary, color: '#ffffff' }}>
-              <i className="fas fa-brain me-2"></i>
-              Análisis Inteligente de Rendimiento
+            <div style={{ ...cardStyles.cardHeader, background: `${themeColors.primary}15`, color: themeColors.primary }}>
+              <i className="fas fa-clipboard-list me-2"></i>
+              Datos Consolidados da OF: {machine.currentOF}
             </div>
             <div style={cardStyles.cardBody}>
               <div className="row">
-                <div className="col-md-4">
-                  <h6 style={{ fontSize: '14px', fontWeight: 600, color: themeColors.primary, marginBottom: '12px' }}>
-                    Estado General
-                  </h6>
-                  <div style={{
-                    padding: '12px',
-                    borderRadius: '8px',
-                    background: insightsData.estado_general === 'OPTIMAL' ? `${themeColors.success}15` : 
-                               insightsData.estado_general === 'WARNING' ? `${themeColors.warning}15` : `${themeColors.error}15`,
-                    color: insightsData.estado_general === 'OPTIMAL' ? themeColors.success : 
-                           insightsData.estado_general === 'WARNING' ? themeColors.warning : themeColors.error,
-                    marginBottom: '12px'
-                  }}>
-                    <i className={`fas fa-${insightsData.estado_general === 'OPTIMAL' ? 'check' : insightsData.estado_general === 'WARNING' ? 'exclamation-triangle' : 'times'} me-2`}></i>
-                    {insightsData.estado_general || 'EVALUANDO'}
+                {/* Coluna esquerda - Dados da OF */}
+                <div className="col-md-6">
+                  <div className="mb-3">
+                    <h6 className="fw-bold mb-3" style={{ color: themeColors.primary }}>
+                      Información General
+                    </h6>
+                    <div className="d-grid gap-2 small">
+                      <div className="d-flex justify-content-between">
+                        <span className="fw-semibold">Producto:</span>
+                        <span>{machine.rt_Desc_producto || machine.product?.description || '—'}</span>
+                      </div>
+                      <div className="d-flex justify-content-between">
+                        <span className="fw-semibold">Planificado:</span>
+                        <span>{machine.Rt_Unidades_planning?.toLocaleString('es-ES') || 0}</span>
+                      </div>
+                      <div className="d-flex justify-content-between">
+                        <span className="fw-semibold">Producido OK:</span>
+                        <span className="text-success">{machine.rt_Unidades_ok?.toLocaleString('es-ES') || 0}</span>
+                      </div>
+                      <div className="d-flex justify-content-between">
+                        <span className="fw-semibold">NOK:</span>
+                        <span className="text-danger">{machine.rt_Unidades_nok?.toLocaleString('es-ES') || 0}</span>
+                      </div>
+                      <div className="d-flex justify-content-between">
+                        <span className="fw-semibold">RWK:</span>
+                        <span className="text-warning">{machine.rt_Unidades_rw?.toLocaleString('es-ES') || 0}</span>
+                      </div>
+                      <div className="d-flex justify-content-between">
+                        <span className="fw-semibold">OEE da OF:</span>
+                        <span className={machine.oee_of >= 65 ? 'text-success' : 'text-warning'}>
+                          {(machine.oee_of ?? 0).toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="d-flex justify-content-between">
+                        <span className="fw-semibold">Rendimiento OF:</span>
+                        <span>{(machine.rendimiento_of ?? 0).toFixed(1)}%</span>
+                      </div>
+                    </div>
                   </div>
-                  <p style={{ fontSize: '12px', color: isDark ? '#b0b0b0' : '#666' }}>
-                    {insightsData.diagnostico_general}
-                  </p>
+
+                  {/* Velocidade e tempos */}
+                  <div className="mb-3">
+                    <h6 className="fw-bold mb-3" style={{ color: themeColors.primary }}>
+                      Velocidad y Tiempos
+                    </h6>
+                    <div className="d-grid gap-2 small">
+                      <div className="d-flex justify-content-between">
+                        <span className="fw-semibold">Velocidad:</span>
+                        <span>
+                          {machine.rt_velocidad > 0 ? `${Math.round(3600 / machine.rt_velocidad)} u/h` : '— u/h'} · {machine.rt_tiempo_pieza?.toFixed(2) ?? '—'} seg/pza
+                        </span>
+                      </div>
+                      <div className="d-flex justify-content-between">
+                        <span className="fw-semibold">Tiempo Producción:</span>
+                        <span>{machine.rt_tiempo_prod ? `${Math.round(machine.rt_tiempo_prod / 60)} min` : '—'}</span>
+                      </div>
+                      <div className="d-flex justify-content-between">
+                        <span className="fw-semibold">Fecha Inicio:</span>
+                        <span>{machine.rt_fecha_inicio ? new Date(machine.rt_fecha_inicio).toLocaleString('es-ES') : '—'}</span>
+                      </div>
+                      <div className="d-flex justify-content-between">
+                        <span className="fw-semibold">Fin Estimado:</span>
+                        <span>{machine.rt_fecha_fin_estimada ? new Date(machine.rt_fecha_fin_estimada).toLocaleString('es-ES') : '—'}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="col-md-4">
-                  <h6 style={{ fontSize: '14px', fontWeight: 600, color: themeColors.success, marginBottom: '12px' }}>
-                    Puntos Fuertes
-                  </h6>
-                  <ul style={{ listStyle: 'none', padding: 0 }}>
-                    {insightsData.puntos_fuertes?.map((punto: string, index: number) => (
-                      <li key={index} style={{ fontSize: '13px', color: isDark ? '#e0e0e0' : '#333', marginBottom: '8px' }}>
-                        <i className="fas fa-check-circle me-2" style={{ color: themeColors.success, fontSize: '12px' }}></i>
-                        {punto}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="col-md-4">
-                  <h6 style={{ fontSize: '14px', fontWeight: 600, color: themeColors.error, marginBottom: '12px' }}>
-                    Áreas de Mejora
-                  </h6>
-                  <ul style={{ listStyle: 'none', padding: 0 }}>
-                    {insightsData.areas_mejora?.map((area: string, index: number) => (
-                      <li key={index} style={{ fontSize: '13px', color: isDark ? '#e0e0e0' : '#333', marginBottom: '8px' }}>
-                        <i className="fas fa-exclamation-circle me-2" style={{ color: themeColors.error, fontSize: '12px' }}></i>
-                        {area}
-                      </li>
-                    ))}
-                  </ul>
+
+                {/* Coluna direita - Dados por turno */}
+                <div className="col-md-6">
+                  <div className="d-flex justify-content-between align-items-center mb-3">
+                    <h6 className="fw-bold" style={{ color: themeColors.primary, margin: 0 }}>
+                      Rendimiento por Turno
+                    {shiftData && shiftData.cache_info && (
+                      shiftData.cache_info.night_shift_from_cache ? (
+                        <span className="badge bg-info ms-2" style={{ fontSize: '10px' }}>
+                          <i className="fas fa-database me-1"></i>
+                          Dados Dinâmicos Ativos
+                        </span>
+                      ) : shiftData.cache_info.night_shift_from_dynamic ? (
+                        <span className="badge bg-warning ms-2" style={{ fontSize: '10px' }}>
+                          <i className="fas fa-magic me-1"></i>
+                          Gerado Automaticamente
+                        </span>
+                      ) : null
+                    )}
+                    </h6>
+                    {machine.currentOF && machine.currentOF !== '--' && (
+                      <button
+                        onClick={async (event) => {
+                          if (!machine || !machine.currentOF || machine.currentOF === '--') return;
+
+                          try {
+                            const response = await fetch('/api/analytics/shifts', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                cod_maquina: machine.machine.Cod_maquina,
+                                cod_of: machine.currentOF,
+                                action: 'refresh_night_shift'
+                              })
+                            });
+
+                            const result = await response.json();
+                            if (result.success) {
+                              // Forçar recarregamento da página para atualizar os dados
+                              window.location.reload();
+                            }
+                          } catch (error) {
+                            console.error('Error al refrescar cache del turno de noche:', error);
+                          }
+                        }}
+                        className="btn btn-sm"
+                        style={{
+                          background: themeColors.info,
+                          color: '#ffffff',
+                          border: 'none',
+                          borderRadius: '6px',
+                          fontSize: '12px'
+                        }}
+                        title="Atualizar dados dinâmicos do turno da noite"
+                      >
+                        <i className="fas fa-sync-alt me-1"></i>
+                        Atualizar Cache
+                      </button>
+                    )}
+                  </div>
+
+                  {shiftLoading ? (
+                    <div className="text-center py-4">
+                      <i className="fas fa-spinner fa-spin mb-2" style={{ fontSize: '24px', color: themeColors.primary }}></i>
+                      <p style={{ color: themeColors.textSecondary, fontSize: '14px' }}>Cargando datos por turno...</p>
+                    </div>
+                  ) : shiftData && shiftData.turnos ? (
+                    <div className="d-grid gap-3">
+                      {shiftData.turnos.map((turno: any, index: number) => (
+                        <div key={index} style={{
+                          padding: '12px',
+                          borderRadius: '8px',
+                          background: isDark ? '#1f1f1f' : '#f9f9f9',
+                          border: `1px solid ${isDark ? '#333' : '#e0e0e0'}`,
+                          position: 'relative'
+                        }}>
+                          <div className="d-flex justify-content-between align-items-center mb-2">
+                            <span className="fw-bold" style={{ color: themeColors.primary }}>
+                              {turno.turno}
+                              {turno.turno === 'Noche' && shiftData?.cache_info?.night_shift_from_cache && (
+                                <i className="fas fa-magic ms-2" style={{ color: themeColors.info, fontSize: '12px' }} title="Usando variáveis dinâmicas"></i>
+                              )}
+                            </span>
+                            <span className={`badge ${turno.oee >= 65 ? 'bg-success' : 'bg-warning'}`}>
+                              OEE: {turno.oee?.toFixed(1) ?? 0}%
+                              {turno.turno === 'Noche' && (
+                                shiftData?.cache_info?.night_shift_from_cache ? (
+                                  <span className="ms-1" style={{ fontSize: '10px' }}>(Cache)</span>
+                                ) : shiftData?.cache_info?.night_shift_from_dynamic ? (
+                                  <span className="ms-1" style={{ fontSize: '10px' }}>(Auto)</span>
+                                ) : null
+                              )}
+                            </span>
+                          </div>
+
+                          {/* Barra OEE */}
+                          <div className="mb-2">
+                            <div className="d-flex justify-content-between text-xs mb-1">
+                              <span>OEE</span>
+                              <span>{turno.oee?.toFixed(1) ?? 0}%</span>
+                            </div>
+                            <div style={{
+                              height: '8px',
+                              background: isDark ? '#333' : '#e0e0e0',
+                              borderRadius: '4px',
+                              overflow: 'hidden'
+                            }}>
+                              <div style={{
+                                height: '100%',
+                                width: `${Math.min(100, turno.oee ?? 0)}%`,
+                                background: turno.oee >= 65 ? themeColors.success : themeColors.warning,
+                                transition: 'width 0.3s ease'
+                              }}></div>
+                            </div>
+                          </div>
+
+                          {/* Barra empilhada de tempos */}
+                          <div className="mb-2">
+                            <div className="d-flex justify-content-between text-xs mb-1">
+                              <span>Tiempos (min)</span>
+                              <span>{(turno.prep_min + turno.prod_min + turno.paro_min) || 0} total</span>
+                            </div>
+                            <div style={{
+                              height: '8px',
+                              background: isDark ? '#333' : '#e0e0e0',
+                              borderRadius: '4px',
+                              overflow: 'hidden',
+                              display: 'flex'
+                            }}>
+                              <div style={{
+                                height: '100%',
+                                width: `${((turno.prep_min || 0) / Math.max(1, (turno.prep_min + turno.prod_min + turno.paro_min))) * 100}%`,
+                                background: themeColors.warning,
+                                transition: 'width 0.3s ease'
+                              }} title={`Preparación: ${turno.prep_min || 0} min`}></div>
+                              <div style={{
+                                height: '100%',
+                                width: `${((turno.prod_min || 0) / Math.max(1, (turno.prep_min + turno.prod_min + turno.paro_min))) * 100}%`,
+                                background: themeColors.success,
+                                transition: 'width 0.3s ease'
+                              }} title={`Producción: ${turno.prod_min || 0} min`}></div>
+                              <div style={{
+                                height: '100%',
+                                width: `${((turno.paro_min || 0) / Math.max(1, (turno.prep_min + turno.prod_min + turno.paro_min))) * 100}%`,
+                                background: themeColors.error,
+                                transition: 'width 0.3s ease'
+                              }} title={`Paros: ${turno.paro_min || 0} min`}></div>
+                            </div>
+                            <div className="d-flex justify-content-between text-xs mt-1">
+                              <span style={{ color: themeColors.warning }}>Prep</span>
+                              <span style={{ color: themeColors.success }}>Prod</span>
+                              <span style={{ color: themeColors.error }}>Paro</span>
+                            </div>
+                          </div>
+
+                          {/* Estatísticas do turno */}
+                          <div className="row text-center">
+                            <div className="col-4">
+                              <div className="text-success fw-bold">{turno.ok?.toLocaleString('es-ES') || 0}</div>
+                              <div className="text-xs">OK</div>
+                            </div>
+                            <div className="col-4">
+                              <div className="text-danger fw-bold">{turno.nok?.toLocaleString('es-ES') || 0}</div>
+                              <div className="text-xs">NOK</div>
+                            </div>
+                            <div className="col-4">
+                              <div className="text-warning fw-bold">{turno.rwk?.toLocaleString('es-ES') || 0}</div>
+                              <div className="text-xs">RWK</div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4">
+                      <i className="fas fa-chart-bar mb-2" style={{ fontSize: '24px', color: themeColors.textSecondary, opacity: 0.5 }}></i>
+                      <p style={{ color: themeColors.textSecondary, fontSize: '14px', marginBottom: 0 }}>
+                        {machine.currentOF ? 'No hay datos por turno disponibles' : 'Sin OF activa'}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1473,86 +1385,3 @@ function renderInsightsContent(insightsData: any, themeColors: any, cardStyles: 
   );
 }
 
-// Tab de gestión con funcionalidades avanzadas
-function renderGestionContent(machine: any, themeColors: any, cardStyles: any, isDark: boolean) {
-  const handleManagementAction = async (action: string, data: any = {}) => {
-    try {
-      console.log(`🔧 Ejecutando acción: ${action}`);
-
-      const response = await fetch('/api/management', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action,
-          machineId: machine?.machine?.Cod_maquina,
-          data
-        })
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        alert(`✅ ${result.message}`);
-      } else {
-        alert(`❌ Error: ${result.error}`);
-      }
-    } catch (error) {
-      console.error('Error ejecutando acción:', error);
-      alert('❌ Error ejecutando acción');
-    }
-  };
-
-  return (
-    <div className="gestion-content">
-      <div className="row mb-4">
-        <div className="col-md-4">
-          <div style={cardStyles.card}>
-            <div style={{ ...cardStyles.cardHeader, background: isDark ? '#2a2a2a' : themeColors.primary, color: '#ffffff' }}>
-              <i className="fas fa-tools me-2"></i>
-              Gestión de Paradas
-            </div>
-            <div style={cardStyles.cardBody}>
-              <div className="d-grid gap-2">
-                <button
-                  className="btn"
-                  style={{
-                    background: `${themeColors.info}15`,
-                    color: themeColors.info,
-                    border: `1px solid ${themeColors.info}30`,
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    padding: '10px'
-                  }}
-                  onClick={() => alert('🚧 Función en desarrollo - Reclasificar paradas seleccionadas')}
-                >
-                  <i className="fas fa-edit me-2"></i>
-                  Reclasificar Paradas
-                </button>
-                <button
-                  className="btn"
-                  style={{
-                    background: `${themeColors.warning}15`,
-                    color: themeColors.warning,
-                    border: `1px solid ${themeColors.warning}30`,
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    padding: '10px'
-                  }}
-                  onClick={() => handleManagementAction('merge_microstops', {
-                    threshold: 120,
-                    mergeWindow: 300
-                  })}
-                >
-                  <i className="fas fa-compress-arrows-alt me-2"></i>
-                  Fusionar Micro-paradas
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
