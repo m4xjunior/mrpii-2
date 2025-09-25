@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, CSSProperties } from 'react';
 import { MachineStatus } from '../types/machine';
 import ProductionCounter from './ProductionCounter';
 import MachineProductionChart from './MachineProductionChart';
@@ -124,6 +124,75 @@ export default function MachineDetailModal({ machine, isOpen, onClose }: Machine
     { id: 'oee', label: 'OEE', icon: 'fas fa-tachometer-alt' }
   ];
 
+  const formatNumber = (value?: number | null) => {
+    if (value === null || value === undefined) return '—';
+    const numeric = Number(value);
+    if (Number.isNaN(numeric)) return '—';
+    return Math.round(numeric).toLocaleString('es-ES');
+  };
+
+  const formatPercent = (value?: number | null) => {
+    if (value === null || value === undefined) return '—';
+    const numeric = Number(value);
+    if (Number.isNaN(numeric)) return '—';
+    return `${numeric.toFixed(1)}%`;
+  };
+
+  const shiftLabel = machine.order?.shift || 'Sin turno';
+  const currentOF = machine.currentOF && machine.currentOF !== '--' ? machine.currentOF : null;
+  const downtimeLabel = machine.downtime || (machine.status === 'PARADA' ? 'Parada detectada' : null);
+  const plannedUnits = machine.Rt_Unidades_planning ?? 0;
+  const producedOkUnits = machine.production.ok ?? 0;
+  const planningProgress = plannedUnits > 0 ? Math.min(100, (producedOkUnits / plannedUnits) * 100) : 0;
+  const remainingPieces = machine.productionOF?.remainingPieces ?? 0;
+  const remainingTime = machine.productionOF?.remainingTime || '—';
+  const totalPieces = machine.production.total ?? 0;
+  const qualityRate = totalPieces > 0 ? (machine.production.ok / totalPieces) * 100 : null;
+
+  const tabBadges: Record<string, string> = {
+    resumen: formatPercent(machine.oee_turno ?? machine.oee ?? null),
+    of: formatNumber(machine.productionOF?.total ?? machine.production.total ?? 0),
+    paros: machine.ofInfo?.parosMinutes ? `${machine.ofInfo.parosMinutes}m` : '0m',
+    produccion: formatNumber(machine.production.ok ?? 0),
+    oee: formatPercent(machine.oee_turno ?? machine.oee ?? null),
+  };
+
+  const chipEntries = [
+    {
+      label: 'Turno',
+      value: shiftLabel,
+      subtext: 'Ventana actual',
+    },
+    {
+      label: 'OF en curso',
+      value: currentOF || 'Sin OF',
+      subtext: remainingPieces ? `${formatNumber(remainingPieces)} piezas restantes` : 'Ninguna restante',
+      tone: currentOF ? 'is-success' : undefined,
+    },
+    {
+      label: 'Operador',
+      value: machine.operatorFull || machine.operator || 'Sin operador',
+      subtext: 'Responsable del turno',
+    },
+    {
+      label: 'Tiempo restante',
+      value: remainingTime,
+      subtext: planningProgress ? `${planningProgress.toFixed(0)}% completado` : 'Sin planificación',
+    },
+    {
+      label: 'Calidad',
+      value: qualityRate !== null ? formatPercent(qualityRate) : '—',
+      subtext: `${formatNumber(machine.production.ok)} OK / ${formatNumber(machine.production.nok)} NOK`,
+      tone: qualityRate !== null && qualityRate < 90 ? 'is-critical' : undefined,
+    },
+    {
+      label: 'Paros acumulados',
+      value: machine.ofInfo?.parosMinutes ? `${machine.ofInfo.parosMinutes} min` : 'Sin eventos',
+      subtext: downtimeLabel ? downtimeLabel : 'Operativa estable',
+      tone: downtimeLabel ? 'is-critical' : undefined,
+    },
+  ];
+
   const modalBackdrop = 'rgba(0, 0, 0, 0.75)';
 
   const modalStyles = {
@@ -181,7 +250,9 @@ export default function MachineDetailModal({ machine, isOpen, onClose }: Machine
       cursor: 'pointer'
     },
     statusHeader: {
-      background: isDark ? '#2a2a2a' : '#fafafa',
+      background: isDark
+        ? 'linear-gradient(135deg, rgba(30,30,30,0.95), rgba(58,58,58,0.85))'
+        : 'linear-gradient(135deg, rgba(248, 249, 255, 0.96), rgba(236, 243, 255, 0.92))',
       padding: '16px 24px',
       borderBottom: `1px solid ${isDark ? '#333333' : '#e8e8e8'}`,
       flexShrink: 0
@@ -205,27 +276,11 @@ export default function MachineDetailModal({ machine, isOpen, onClose }: Machine
       marginBottom: '8px'
     },
     tabsNav: {
-      background: isDark ? '#1a1a1a' : '#ffffff',
+      background: 'transparent',
       padding: '8px 24px 0',
       borderBottom: `1px solid ${isDark ? '#333333' : '#e8e8e8'}`,
-      flexShrink: 0,
-      overflowX: 'auto' as const,
-      scrollbarWidth: 'thin' as const,
-      scrollbarColor: `${themeColors.primary}30 transparent`
+      flexShrink: 0
     },
-    tabButton: (isActive: boolean) => ({
-      background: 'transparent',
-      border: 'none',
-      borderBottom: isActive ? `2px solid ${themeColors.primary}` : '2px solid transparent',
-      borderRadius: 0,
-      color: isActive ? themeColors.primary : isDark ? '#999999' : '#666666',
-      transition: 'all 0.2s ease',
-      fontWeight: isActive ? 600 : 400,
-      padding: '12px 16px',
-      fontSize: '14px',
-      minWidth: isMobile ? '72px' : '100px',
-      cursor: 'pointer'
-    }),
     tabContent: {
       flex: 1,
       padding: '24px',
@@ -344,8 +399,8 @@ export default function MachineDetailModal({ machine, isOpen, onClose }: Machine
                     value: `${machine.efficiency}%`,
                   label: 'Eficiencia',
                     color: machine.efficiency >= 80 ? themeColors.success :
-                           machine.efficiency >= 60 ? themeColors.warning : themeColors.error,
-                  chartData: generateTrendData(7, Math.max(0, machine.efficiency - 15), Math.min(100, machine.efficiency + 10))
+                   machine.efficiency >= 60 ? themeColors.warning : themeColors.error,
+                 chartData: generateTrendData(7, Math.max(0, machine.efficiency - 15), Math.min(100, machine.efficiency + 10))
                   }
                 ].map((metric, index) => (
                   <div key={index} className={`col-${getGridCols(6, 6, 3)}`}>
@@ -375,25 +430,42 @@ export default function MachineDetailModal({ machine, isOpen, onClose }: Machine
                   </div>
                 ))}
               </div>
+              <div className="machine-detail-chip-grid">
+                {chipEntries.map((chip, index) => (
+                  <div
+                    key={`${chip.label}-${index}`}
+                    className={`machine-detail-chip ${chip.tone ?? ''}`}
+                  >
+                    <span className="chip-label">{chip.label}</span>
+                    <span className="chip-value">{chip.value}</span>
+                    {chip.subtext && (
+                      <span className="chip-subtext">{chip.subtext}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
 
           {/* Tabs Navigation - Sticky */}
-            <div style={modalStyles.tabsNav}>
-            <div className="d-flex" style={{ gap: '4px' }}>
-              {tabs.map((tab) => (
+            <div style={modalStyles.tabsNav} className="machine-detail-tabbar">
+              {tabs.map((tab) => {
+                const badge = tabBadges[tab.id];
+                const showBadge = badge && badge !== '—';
+                return (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                  style={modalStyles.tabButton(activeTab === tab.id)}
-                >
-                  <i className={`${tab.icon} ${isMobile ? '' : 'me-2'}`} style={{ fontSize: '14px' }}></i>
-                  {!isMobile && <span>{tab.label}</span>}
-                  {isMobile && <span className="d-block" style={{ fontSize: '10px', marginTop: '4px' }}>
-                    {tab.label.split(' ')[0].substring(0, 4)}
-                  </span>}
+                    className={`machine-detail-tab ${activeTab === tab.id ? 'is-active' : ''}`}
+                    style={activeTab === tab.id ? ({ '--tab-accent': themeColors.primary } as CSSProperties) : undefined}
+                  >
+                    <span className="tab-icon">
+                      <i className={tab.icon}></i>
+                    </span>
+                    <span className="tab-label">{tab.label}</span>
+                    {showBadge && <span className="tab-badge">{badge}</span>}
                   </button>
-                ))}
-              </div>
+                );
+              })}
             </div>
 
           {/* Tab Content - Scrollable */}
@@ -683,7 +755,7 @@ function ProduccionContent({ data, themeColors, isDark, machineId }: { data: any
     of_actual: data.of?.Rt_Cod_of || 'N/A',
     producto_actual: data.of?.Rt_Desc_producto || 'N/A',
     operator: data.operator || 'N/A',
-    shift: data.shift || 'N/A',
+    shift: typeof data.shift === 'string' ? data.shift : 'N/A',
     timestamp: new Date().toISOString(),
     historical: data.historical || []
   } : null;
@@ -1384,4 +1456,3 @@ function renderResumenContent(machine: any, isDark: boolean, themeColors: any, i
     </div>
   );
 }
-

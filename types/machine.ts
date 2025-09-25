@@ -87,7 +87,7 @@ export interface OFInfo {
 
 export interface MachineStatus {
   machine: Machine;
-  status: 'ACTIVA' | 'PARADA' | 'PRODUCIENDO' | 'MANTENIMIENTO' | 'INACTIVA';
+  status: "ACTIVA" | "PARADA" | "PRODUCIENDO" | "MANTENIMIENTO" | "INACTIVA";
   efficiency: number;
   oee: number;
   oeeBreakdown?: {
@@ -208,4 +208,104 @@ export interface ShiftsAnalytics {
   machine_code: string;
   cod_of: string;
   turnos: ShiftData[];
+}
+
+// Tipos para os novos endpoints de informes
+export interface TurnoDetalle {
+  turno: "MAÑANA" | "TARDE" | "NOCHE";
+  window: {
+    inicio: string;
+    fin: string;
+  };
+  kpis: {
+    oee: number;
+    disponibilidad: number;
+    rendimiento: number;
+    calidad: number;
+    velocidad_uh: number;
+    seg_por_pza: number;
+  };
+  unidades: {
+    ok: number;
+    nok: number;
+    rw: number;
+    total: number;
+  };
+  tiempos: {
+    prod_s: number;
+    prep_s: number;
+    paro_pp_s: number;
+    paro_pnp_s: number;
+    paro_calidad_s: number;
+  };
+  produccion_teorica?: number;
+}
+
+export interface ResumenProduccion {
+  cod_maquina: string;
+  cod_of?: string;
+  desc_maquina?: string;
+  desc_of?: string;
+  planificado: number;
+  fuente_planificado: "fase" | "of" | "rt" | "sin_dato";
+  unidades_ok: number;
+  unidades_nok: number;
+  unidades_rw: number;
+  unidades_total: number;
+  velocidad_uh: number;
+  velocidad_seg_por_pza: number;
+  rendimiento_turno_prom: number;
+  rendimiento_of: number;
+  disponibilidad_of: number;
+  calidad_of: number;
+  oee_of: number;
+  fecha_inicio?: string;
+  fecha_fin_real?: string;
+  fecha_fin_estimada?: string;
+}
+
+export interface InformesTurnosResponse {
+  meta: {
+    cod_maquina: string;
+    cod_of?: string;
+    desc_maquina?: string;
+    periodo: {
+      inicio: string;
+      fin: string;
+    };
+    split_ativo: boolean;
+    timezone: string;
+    objetivo_verde: number;
+    objetivo_amarillo: number;
+    fuente_planificado: string;
+  };
+  turnos: TurnoDetalle[];
+  resumen: ResumenProduccion;
+  totais: {
+    periodo_oee: number;
+    periodo_vel_uh: number;
+  };
+}
+
+export interface MachineCardData {
+  cod_maquina: string;
+  desc_maquina: string;
+  cod_of?: string;
+  desc_of?: string;
+  planificado: number;
+  unidades_ok: number;
+  unidades_nok: number;
+  unidades_rw: number;
+  unidades_total: number;
+  velocidad_uh: number;
+  velocidad_seg_por_pza: number;
+  oee_turno: number;
+  rendimiento_turno: number;
+  rendimiento_of: number;
+  calidad: number;
+  disponibilidad: number;
+  fecha_inicio?: string;
+  fecha_fin_estimada?: string;
+  estado_atual: string;
+  fuente_planificado: "fase" | "of" | "rt" | "sin_dato";
 }

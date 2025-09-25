@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from 'lib/database/connection';
+import { NextRequest, NextResponse } from "next/server";
+import { executeQuery } from "lib/database/connection";
 
-type TurnoClave = 'MAÑANA' | 'TARDE' | 'NOCHE';
+type TurnoClave = "MAÑANA" | "TARDE" | "NOCHE";
 
-type FuenteDato = 'fase' | 'of' | 'sin_dato';
+type FuenteDato = "fase" | "of" | "sin_dato";
 
 type InformesTurnosParams = {
   cod_maquina: string;
@@ -40,6 +40,7 @@ type TurnoDetalle = {
     paro_pnp_s: number;
     paro_calidad_s: number;
   };
+  produccion_teorica: number;
 };
 
 type ResumenProduccion = {
@@ -88,12 +89,12 @@ type InformesTurnosResponse = {
   };
 };
 
-const TURNOS_ORDEN: TurnoClave[] = ['MAÑANA', 'TARDE', 'NOCHE'];
+const TURNOS_ORDEN: TurnoClave[] = ["MAÑANA", "TARDE", "NOCHE"];
 
 const ventanaPorTurno: Record<TurnoClave, { start: string; end: string }> = {
-  MAÑANA: { start: '06:00', end: '14:00' },
-  TARDE: { start: '14:00', end: '22:00' },
-  NOCHE: { start: '22:00', end: '06:00' },
+  MAÑANA: { start: "06:00", end: "14:00" },
+  TARDE: { start: "14:00", end: "22:00" },
+  NOCHE: { start: "22:00", end: "06:00" },
 };
 
 const sqlMaquina = `
@@ -103,6 +104,31 @@ const sqlMaquina = `
     cm.Desc_maquina,
     cm.ObjetivoOEEVerde,
     cm.ObjetivoOEENaranja
+  FROM cfg_maquina cm
+  WHERE cm.Cod_maquina = @cod_maquina
+    AND cm.Activo = 1;
+`;
+
+const sqlEstadoTurnoActual = `
+  SELECT
+    cm.Cod_maquina,
+    cm.Rt_Cod_of,
+    cm.Rt_Id_turno,
+    cm.Rt_Dia_productivo,
+    cm.Ag_Rt_OEE_Turno,
+    cm.Ag_Rt_Disp_Turno,
+    cm.Ag_Rt_Rend_Turno,
+    cm.Ag_Rt_Cal_Turno,
+    cm.Rt_Unidades_ok_turno,
+    cm.Rt_Unidades_nok_turno,
+    cm.Rt_Unidades_repro_turno,
+    cm.Rt_Seg_produccion_turno,
+    cm.Rt_Seg_paro_turno,
+    cm.Ag_Rt_PP_Turno,
+    cm.Ag_Rt_PNP_Turno,
+    cm.Rt_Unidades_planning,
+    cm.Rt_Fecha_ini,
+    cm.Rt_Fecha_fin
   FROM cfg_maquina cm
   WHERE cm.Cod_maquina = @cod_maquina
     AND cm.Activo = 1;
@@ -142,12 +168,12 @@ turnos AS (
     FROM rango_dias d
     UNION ALL
     SELECT d.dia, 2, 'TARDE',
-           DATEADD(HOUR, 14, CAST(d.dia AS DATETIME)),
-           DATEADD(HOUR, 22, CAST(d.dia AS DATETIME))
+           DATEADD(MINUTE, 15, DATEADD(HOUR, 14, CAST(d.dia AS DATETIME))),
+           DATEADD(MINUTE, 30, DATEADD(HOUR, 22, CAST(d.dia AS DATETIME)))
     FROM rango_dias d
     UNION ALL
     SELECT d.dia, 3, 'NOCHE',
-           DATEADD(HOUR, 22, CAST(d.dia AS DATETIME)),
+           DATEADD(MINUTE, 30, DATEADD(HOUR, 22, CAST(d.dia AS DATETIME))),
            DATEADD(HOUR, 30, CAST(d.dia AS DATETIME))
     FROM rango_dias d
 ),
@@ -304,10 +330,10 @@ agregado AS (
         SUM(segundos_prod_parcial + segundos_pp_parcial + segundos_pnp_parcial + segundos_pcalidad_parcial) AS segundos_disponibles,
         SUM(segundos_turno) AS segundos_total,
         SUM(CASE
-                WHEN Id_actividad = 2 THEN
+                WHEN segundos_prod_parcial > 0 THEN
                     CASE
-                        WHEN ciclo_nominal_seg > 0 THEN segundos_turno * 1.0 / ciclo_nominal_seg
-                        WHEN rendimiento_nominal_uh > 0 THEN (segundos_turno / 3600.0) * rendimiento_nominal_uh
+                        WHEN ciclo_nominal_seg > 0 THEN segundos_prod_parcial * 1.0 / ciclo_nominal_seg
+                        WHEN rendimiento_nominal_uh > 0 THEN (segundos_prod_parcial / 3600.0) * rendimiento_nominal_uh
                         ELSE 0
                     END
                 ELSE 0
@@ -381,9 +407,18 @@ calculos AS (
             ELSE 0
         END,
         oee_calc = CAST(ROUND(
-            (CASE WHEN a.segundos_disponibles > 0 THEN (a.segundos_prod * 100.0) / a.segundos_disponibles ELSE 0 END / 100.0) *
-            (CASE WHEN a.produccion_teorica > 0 THEN (a.unidades_total * 100.0) / a.produccion_teorica ELSE 0 END / 100.0) *
-            (CASE WHEN (a.unidades_ok + a.unidades_nok) > 0 THEN (a.unidades_ok * 100.0) / (a.unidades_ok + a.unidades_nok) ELSE 0 END / 100.0) * 100.0
+            (CASE WHEN (a.segundos_prod + a.segundos_pp + a.segundos_pnp + a.segundos_pcalidad +
+                        CASE WHEN a.segundos_total > (a.segundos_prod + a.segundos_pp + a.segundos_pnp + a.segundos_pcalidad)
+                             THEN a.segundos_total - (a.segundos_prod + a.segundos_pp + a.segundos_pnp + a.segundos_pcalidad)
+                             ELSE 0 END) > 0
+                  THEN (a.segundos_prod * 1.0) /
+                       (a.segundos_prod + a.segundos_pp + a.segundos_pnp + a.segundos_pcalidad +
+                        CASE WHEN a.segundos_total > (a.segundos_prod + a.segundos_pp + a.segundos_pnp + a.segundos_pcalidad)
+                             THEN a.segundos_total - (a.segundos_prod + a.segundos_pp + a.segundos_pnp + a.segundos_pcalidad)
+                             ELSE 0 END)
+                  ELSE 0 END) *
+            (CASE WHEN a.produccion_teorica > 0 THEN (a.unidades_total * 1.0) / a.produccion_teorica ELSE 0 END) *
+            (CASE WHEN (a.unidades_ok + a.unidades_nok) > 0 THEN (a.unidades_ok * 1.0) / (a.unidades_ok + a.unidades_nok) ELSE 0 END) * 100.0
         , 2) AS DECIMAL(8,2)),
         a.disponibilidad_consolidada,
         a.rendimiento_consolidado,
@@ -400,10 +435,11 @@ SELECT
     unidades_repro,
     unidades_total,
     segundos_prod,
-    segundos_prep,
+    segundos_prep = segundos_prep_calc,
     segundos_pp,
     segundos_pnp,
     segundos_pcalidad,
+    produccion_teorica,
     velocidad_uh = velocidad_uh_calc,
     seg_por_pza = seg_por_pza_calc,
     disponibilidad_turno = COALESCE(disponibilidad_consolidada, disponibilidad_calc),
@@ -443,7 +479,11 @@ base AS (
     SELECT
         hp.Id_actividad,
         DATEDIFF(SECOND, hp.Fecha_ini, hp.Fecha_fin) AS segundos_registro,
-        CASE WHEN hp.Id_actividad = 2 THEN DATEDIFF(SECOND, hp.Fecha_ini, hp.Fecha_fin) ELSE 0 END AS segundos_prod,
+        CASE
+            WHEN (ISNULL(hp.Unidades_ok, 0) + ISNULL(hp.Unidades_nok, 0) + ISNULL(hp.Unidades_repro, 0)) > 0
+            THEN DATEDIFF(SECOND, hp.Fecha_ini, hp.Fecha_fin)
+            ELSE 0
+        END AS segundos_prod,
         ISNULL(hp.PP, 0)  AS segundos_pp,
         ISNULL(hp.PNP, 0) AS segundos_pnp,
         ISNULL(hp.PCALIDAD, 0) AS segundos_pcalidad,
@@ -491,7 +531,7 @@ totales AS (
         SUM(segundos_pnp)  AS segundos_pnp,
         SUM(segundos_pcalidad) AS segundos_pcalidad,
         SUM(CASE
-                WHEN Id_actividad = 2 THEN
+                WHEN (ISNULL(Unidades_ok, 0) + ISNULL(Unidades_nok, 0) + ISNULL(Unidades_repro, 0)) > 0 THEN
                     CASE
                         WHEN ciclo_nominal_seg > 0 THEN segundos_registro * 1.0 / ciclo_nominal_seg
                         WHEN rendimiento_nominal_uh > 0 THEN (segundos_registro / 3600.0) * rendimiento_nominal_uh
@@ -629,237 +669,439 @@ function crearTurnoVacio(turno: TurnoClave): TurnoDetalle {
       paro_pnp_s: 0,
       paro_calidad_s: 0,
     },
+    produccion_teorica: 0,
   };
+}
+
+function mapTurnoIdToClave(id?: number | null): TurnoClave | null {
+  if (id === 1) return "MAÑANA";
+  if (id === 2) return "TARDE";
+  if (id === 3) return "NOCHE";
+  return null;
+}
+
+function parseOptionalDate(value: unknown): Date | null {
+  if (!value) return null;
+  const date = new Date(value as string);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function isDateWithinRange(date: Date, start: Date, end: Date): boolean {
+  const startMs = start.getTime();
+  const endMs = end.getTime();
+  const target = date.getTime();
+  return target >= startMs && target <= endMs;
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const { searchParams } = new URL(request.url);
     const params: InformesTurnosParams = {
-      cod_maquina: (searchParams.get('cod_maquina') || '').trim(),
-      cod_of: (searchParams.get('cod_of') || undefined)?.trim() || undefined,
-      start_date: (searchParams.get('start_date') || '').trim(),
-      end_date: (searchParams.get('end_date') || '').trim(),
-      split_turnos: searchParams.get('split_turnos') !== 'false',
+      cod_maquina: (searchParams.get("cod_maquina") || "").trim(),
+      cod_of: (searchParams.get("cod_of") || undefined)?.trim() || undefined,
+      start_date: (searchParams.get("start_date") || "").trim(),
+      end_date: (searchParams.get("end_date") || "").trim(),
+      split_turnos: searchParams.get("split_turnos") !== "false",
     };
 
     if (!params.cod_maquina) {
-      return NextResponse.json({ error: 'El parámetro cod_maquina es obligatorio.' }, { status: 400 });
+      return NextResponse.json(
+        { error: "El parámetro cod_maquina es obligatorio." },
+        { status: 400 },
+      );
     }
 
     if (!params.start_date || !params.end_date) {
-      return NextResponse.json({ error: 'Debe indicar start_date y end_date.' }, { status: 400 });
+      return NextResponse.json(
+        { error: "Debe indicar start_date y end_date." },
+        { status: 400 },
+      );
     }
 
     const fechaInicio = parseDateParam(params.start_date);
     const fechaFin = parseDateParam(params.end_date);
+    const fechaFinInclusive = new Date(
+      fechaFin.getTime() + 24 * 60 * 60 * 1000 - 1,
+    );
 
-    if (Number.isNaN(fechaInicio.getTime()) || Number.isNaN(fechaFin.getTime())) {
-      return NextResponse.json({ error: 'Fechas inválidas.' }, { status: 400 });
+    if (
+      Number.isNaN(fechaInicio.getTime()) ||
+      Number.isNaN(fechaFin.getTime())
+    ) {
+      return NextResponse.json({ error: "Fechas inválidas." }, { status: 400 });
     }
 
     if (fechaInicio > fechaFin) {
-      return NextResponse.json({ error: 'La fecha inicial debe ser anterior a la final.' }, { status: 400 });
+      return NextResponse.json(
+        { error: "La fecha inicial debe ser anterior a la final." },
+        { status: 400 },
+      );
     }
 
     const diffMs = fechaFin.getTime() - fechaInicio.getTime();
     const rangoMaximoMs = 90 * 24 * 60 * 60 * 1000;
     if (diffMs > rangoMaximoMs) {
-      return NextResponse.json({ error: 'El rango máximo permitido es de 90 días.' }, { status: 400 });
+      return NextResponse.json(
+        { error: "El rango máximo permitido es de 90 días." },
+        { status: 400 },
+      );
     }
 
-    const maquinaInfo = await executeQuery(sqlMaquina, { cod_maquina: params.cod_maquina }, 'mapex');
+    const maquinaInfo = await executeQuery(
+      sqlMaquina,
+      { cod_maquina: params.cod_maquina },
+      "mapex",
+    );
     if (!maquinaInfo.length) {
-      return NextResponse.json({ error: 'Máquina no encontrada o inactiva.' }, { status: 404 });
+      return NextResponse.json(
+        { error: "Máquina no encontrada o inactiva." },
+        { status: 404 },
+      );
     }
 
     if (params.cod_of) {
-      const ofRespuesta = await executeQuery(sqlValidarOF, {
-        cod_of: params.cod_of,
-        cod_maquina: params.cod_maquina,
-      }, 'mapex');
+      const ofRespuesta = await executeQuery(
+        sqlValidarOF,
+        {
+          cod_of: params.cod_of,
+          cod_maquina: params.cod_maquina,
+        },
+        "mapex",
+      );
 
       if (!ofRespuesta.length) {
-        return NextResponse.json({ error: 'La OF indicada no está asociada a la máquina.' }, { status: 404 });
+        return NextResponse.json(
+          { error: "La OF indicada no está asociada a la máquina." },
+          { status: 404 },
+        );
       }
     }
 
-    const parametrosComunes = {
-      cod_maquina: params.cod_maquina,
-      fecha_inicio: fechaInicio,
-      fecha_fin: fechaFin,
-      cod_of: params.cod_of ?? null,
-    } as const;
+    const response = await construirRespuestaTurnos({
+      params,
+      maquinaInfo: maquinaInfo[0],
+      fechaInicio,
+      fechaFin,
+      fechaFinInclusive,
+    });
 
-    const [turnosRaw, resumenRaw, planRaw] = await Promise.all([
-      executeQuery<any>(sqlTurnos, parametrosComunes, 'mapex'),
-      executeQuery<any>(sqlResumen, parametrosComunes, 'mapex'),
-      executeQuery<any>(sqlPlan, {
+    return NextResponse.json(response);
+  } catch (error) {
+    console.error("❌ Error en /api/informes/turnos:", error);
+    return NextResponse.json(
+      {
+        error: "Error interno del servidor",
+        detalle: error instanceof Error ? error.message : "Error desconocido",
+      },
+      { status: 500 },
+    );
+  }
+}
+type ConstruirTurnosInput = {
+  params: InformesTurnosParams;
+  maquinaInfo: any;
+  fechaInicio: Date;
+  fechaFin: Date;
+  fechaFinInclusive: Date;
+};
+
+export async function construirRespuestaTurnos({
+  params,
+  maquinaInfo,
+  fechaInicio,
+  fechaFin,
+  fechaFinInclusive,
+}: ConstruirTurnosInput): Promise<InformesTurnosResponse> {
+  const parametrosComunes = {
+    cod_maquina: params.cod_maquina,
+    fecha_inicio: fechaInicio,
+    fecha_fin: fechaFin,
+    cod_of: params.cod_of ?? null,
+  } as const;
+
+  const [turnosRaw, resumenRaw, planRaw, estadoTurnoRaw] = await Promise.all([
+    executeQuery<any>(sqlTurnos, parametrosComunes, "mapex"),
+    executeQuery<any>(sqlResumen, parametrosComunes, "mapex"),
+    executeQuery<any>(
+      sqlPlan,
+      {
         cod_maquina: params.cod_maquina,
         cod_of: params.cod_of ?? null,
-      }, 'mapex'),
-    ]);
+      },
+      "mapex",
+    ),
+    executeQuery<any>(
+      sqlEstadoTurnoActual,
+      { cod_maquina: params.cod_maquina },
+      "mapex",
+    ),
+  ]);
 
-    const turnosMap = TURNOS_ORDEN.reduce<Record<TurnoClave, TurnoDetalle>>((acc, turno) => {
+  const turnosMap = TURNOS_ORDEN.reduce<Record<TurnoClave, TurnoDetalle>>(
+    (acc, turno) => {
       acc[turno] = crearTurnoVacio(turno);
       return acc;
-    }, {} as Record<TurnoClave, TurnoDetalle>);
+    },
+    {} as Record<TurnoClave, TurnoDetalle>,
+  );
 
-    let objetivoVerde = toNumber(maquinaInfo[0]?.ObjetivoOEEVerde, 0);
-    let objetivoAmarillo = toNumber(maquinaInfo[0]?.ObjetivoOEENaranja, 0);
+  let objetivoVerde = toNumber(maquinaInfo?.ObjetivoOEEVerde, 0);
+  let objetivoAmarillo = toNumber(maquinaInfo?.ObjetivoOEENaranja, 0);
 
-    for (const fila of turnosRaw) {
-      const clave = fila.turno as TurnoClave | undefined;
-      if (!clave || !turnosMap[clave]) continue;
+  for (const fila of turnosRaw) {
+    const clave = fila.turno as TurnoClave | undefined;
+    if (!clave || !turnosMap[clave]) continue;
 
-      objetivoVerde = objetivoVerde || toNumber(fila.objetivo_verde, 0);
-      objetivoAmarillo = objetivoAmarillo || toNumber(fila.objetivo_amarillo, 0);
+    objetivoVerde = objetivoVerde || toNumber(fila.objetivo_verde, 0);
+    objetivoAmarillo = objetivoAmarillo || toNumber(fila.objetivo_amarillo, 0);
 
-      turnosMap[clave] = {
-        turno: clave,
-        window: ventanaPorTurno[clave],
-        kpis: {
-          oee: toNumber(fila.oee_turno, 1),
-          disponibilidad: toNumber(fila.disponibilidad_turno, 1),
-          rendimiento: toNumber(fila.rendimiento_turno, 1),
-          calidad: toNumber(fila.calidad_turno, 1),
-          velocidad_uh: toNumber(fila.velocidad_uh, 1),
-          seg_por_pza: toNumber(fila.seg_por_pza, 1),
-        },
-        unidades: {
-          ok: Math.round(Number(fila.unidades_ok) || 0),
-          nok: Math.round(Number(fila.unidades_nok) || 0),
-          rw: Math.round(Number(fila.unidades_repro) || 0),
-          total: Math.round(Number(fila.unidades_total) || 0),
-        },
-        tiempos: {
-          prod_s: Math.round(Number(fila.segundos_prod) || 0),
-          prep_s: Math.round(Number(fila.segundos_prep) || 0),
-          paro_pp_s: Math.round(Number(fila.segundos_pp) || 0),
-          paro_pnp_s: Math.round(Number(fila.segundos_pnp) || 0),
-          paro_calidad_s: Math.round(Number(fila.segundos_pcalidad) || 0),
-        },
-      };
-    }
-
-    const turnos = TURNOS_ORDEN.map((turno) => turnosMap[turno]);
-
-    const resumenRow = resumenRaw[0];
-    const resumen: ResumenProduccion = {
-      cod_maquina: params.cod_maquina,
-      cod_of: resumenRow?.cod_of || params.cod_of,
-      desc_maquina: resumenRow?.desc_maquina,
-      desc_of: resumenRow?.desc_of,
-      planificado: 0,
-      fuente_planificado: 'sin_dato',
-      unidades_ok: Math.round(Number(resumenRow?.unidades_ok) || 0),
-      unidades_nok: Math.round(Number(resumenRow?.unidades_nok) || 0),
-      unidades_rw: Math.round(Number(resumenRow?.unidades_repro) || 0),
-      unidades_total: Math.round(Number(resumenRow?.unidades_total) || 0),
-      velocidad_uh: toNumber(resumenRow?.velocidad_uh, 1),
-      velocidad_seg_por_pza: toNumber(resumenRow?.velocidad_seg_por_pza, 1),
-      rendimiento_turno_prom: turnos.length
-        ? toNumber(sum(turnos, (t) => t.kpis.rendimiento) / turnos.length, 1)
-        : 0,
-      rendimiento_of: toNumber(resumenRow?.rendimiento_of, 1),
-      disponibilidad_of: toNumber(resumenRow?.disponibilidad_of, 1),
-      calidad_of: toNumber(resumenRow?.calidad_of, 1),
-      oee_of: toNumber(resumenRow?.oee_of, 1),
-      fecha_inicio: resumenRow?.fecha_inicio_rt ? new Date(resumenRow.fecha_inicio_rt).toISOString() : undefined,
-      fecha_fin_real: resumenRow?.fecha_fin_rt ? new Date(resumenRow.fecha_fin_rt).toISOString() : undefined,
-      fecha_fin_estimada: undefined,
+    turnosMap[clave] = {
+      turno: clave,
+      window: ventanaPorTurno[clave],
+      kpis: {
+        oee: toNumber(fila.oee_turno, 1),
+        disponibilidad: toNumber(fila.disponibilidad_turno, 1),
+        rendimiento: toNumber(fila.rendimiento_turno, 1),
+        calidad: toNumber(fila.calidad_turno, 1),
+        velocidad_uh: toNumber(fila.velocidad_uh, 1),
+        seg_por_pza: toNumber(fila.seg_por_pza, 1),
+      },
+      unidades: {
+        ok: Math.round(Number(fila.unidades_ok) || 0),
+        nok: Math.round(Number(fila.unidades_nok) || 0),
+        rw: Math.round(Number(fila.unidades_repro) || 0),
+        total: Math.round(Number(fila.unidades_total) || 0),
+      },
+      tiempos: {
+        prod_s: Math.round(Number(fila.segundos_prod) || 0),
+        prep_s: Math.round(Number(fila.segundos_prep) || 0),
+        paro_pp_s: Math.round(Number(fila.segundos_pp) || 0),
+        paro_pnp_s: Math.round(Number(fila.segundos_pnp) || 0),
+        paro_calidad_s: Math.round(Number(fila.segundos_pcalidad) || 0),
+      },
+      produccion_teorica: Math.round(Number(fila.produccion_teorica) || 0),
     };
+  }
 
-    const planRow = planRaw[0];
-    let planificado = 0;
-    let fuentePlan: FuenteDato = 'sin_dato';
+  const estadoTurno = estadoTurnoRaw[0];
+  if (estadoTurno) {
+    const turnoActual = mapTurnoIdToClave(Number(estadoTurno.Rt_Id_turno));
+    const diaProductivo = parseOptionalDate(estadoTurno.Rt_Dia_productivo);
+    const periodoIncluido =
+      !diaProductivo ||
+      isDateWithinRange(diaProductivo, fechaInicio, fechaFinInclusive);
+    const ofCompat =
+      !params.cod_of ||
+      (estadoTurno.Rt_Cod_of && estadoTurno.Rt_Cod_of === params.cod_of);
 
-    if (planRow?.unidades_plan_fase != null) {
-      planificado = Number(planRow.unidades_plan_fase) || 0;
-      fuentePlan = 'fase';
-    } else if (planRow?.unidades_plan_of != null) {
-      planificado = Number(planRow.unidades_plan_of) || 0;
-      fuentePlan = 'of';
+    if (turnoActual && periodoIncluido && ofCompat) {
+      const destino = turnosMap[turnoActual];
+      if (destino) {
+        const unidadesOk = Number(
+          estadoTurno.Rt_Unidades_ok_turno ?? destino.unidades.ok,
+        );
+        const unidadesNok = Number(
+          estadoTurno.Rt_Unidades_nok_turno ?? destino.unidades.nok,
+        );
+        const unidadesRw = Number(
+          estadoTurno.Rt_Unidades_repro_turno ?? destino.unidades.rw,
+        );
+        const totalUnidades = unidadesOk + unidadesNok + unidadesRw;
+
+        const segProd = Number(
+          estadoTurno.Rt_Seg_produccion_turno ?? destino.tiempos.prod_s,
+        );
+        const segParoTotal = Number(
+          estadoTurno.Rt_Seg_paro_turno ??
+            destino.tiempos.paro_pp_s +
+              destino.tiempos.paro_pnp_s +
+              destino.tiempos.paro_calidad_s,
+        );
+        const segPP = Number(
+          estadoTurno.Ag_Rt_PP_Turno ?? destino.tiempos.paro_pp_s,
+        );
+        const segPNP = Number(
+          estadoTurno.Ag_Rt_PNP_Turno ?? destino.tiempos.paro_pnp_s,
+        );
+        const segCalidad = Math.max(segParoTotal - (segPP + segPNP), 0);
+        const segPrep = Math.max(segParoTotal - segPP - segPNP - segCalidad, 0);
+
+        const velUH =
+          segProd > 0
+            ? (totalUnidades * 3600) / segProd
+            : destino.kpis.velocidad_uh;
+        const segPorPza =
+          totalUnidades > 0
+            ? segProd / totalUnidades
+            : destino.kpis.seg_por_pza;
+
+        const disp =
+          estadoTurno.Ag_Rt_Disp_Turno != null
+            ? Number(estadoTurno.Ag_Rt_Disp_Turno)
+            : destino.kpis.disponibilidad;
+        const rend =
+          estadoTurno.Ag_Rt_Rend_Turno != null
+            ? Number(estadoTurno.Ag_Rt_Rend_Turno)
+            : destino.kpis.rendimiento;
+        const cal =
+          estadoTurno.Ag_Rt_Cal_Turno != null
+            ? Number(estadoTurno.Ag_Rt_Cal_Turno)
+            : destino.kpis.calidad;
+        const oee =
+          estadoTurno.Ag_Rt_OEE_Turno != null
+            ? Number(estadoTurno.Ag_Rt_OEE_Turno)
+            : destino.kpis.oee;
+
+        destino.kpis = {
+          oee: toNumber(oee, 1),
+          disponibilidad: toNumber(disp, 1),
+          rendimiento: toNumber(rend, 1),
+          calidad: toNumber(cal, 1),
+          velocidad_uh: toNumber(velUH, 1),
+          seg_por_pza: toNumber(segPorPza, 1),
+        };
+
+        destino.unidades = {
+          ok: Math.round(unidadesOk),
+          nok: Math.round(unidadesNok),
+          rw: Math.round(unidadesRw),
+          total: Math.round(totalUnidades),
+        };
+
+        destino.tiempos = {
+          prod_s: Math.round(segProd),
+          prep_s: Math.max(Math.round(segPrep), 0),
+          paro_pp_s: Math.max(Math.round(segPP), 0),
+          paro_pnp_s: Math.max(Math.round(segPNP), 0),
+          paro_calidad_s: Math.max(Math.round(segCalidad), 0),
+        };
+      }
     }
+  }
 
-    resumen.planificado = planificado;
-    resumen.fuente_planificado = fuentePlan;
+  const turnos = TURNOS_ORDEN.map((turnoClave) => turnosMap[turnoClave]);
 
-    if (!resumen.desc_maquina && planRow?.Desc_maquina) {
-      resumen.desc_maquina = planRow.Desc_maquina;
-    }
-    if (!resumen.desc_of && planRow?.Desc_of) {
-      resumen.desc_of = planRow.Desc_of;
-    }
-    if (!resumen.cod_of && planRow?.Cod_of) {
-      resumen.cod_of = planRow.Cod_of;
-    }
+  const resumenRow = resumenRaw[0];
 
-    if (!resumen.fecha_inicio) {
-      if (planRow?.Rt_Fecha_ini) resumen.fecha_inicio = new Date(planRow.Rt_Fecha_ini).toISOString();
-      else if (planRow?.fecha_ini_of) resumen.fecha_inicio = new Date(planRow.fecha_ini_of).toISOString();
-    }
+  const resumen: ResumenProduccion = {
+    cod_maquina: params.cod_maquina,
+    cod_of: resumenRow?.cod_of || params.cod_of,
+    desc_maquina: resumenRow?.desc_maquina || maquinaInfo?.Desc_maquina,
+    desc_of: resumenRow?.desc_of,
+    planificado: 0,
+    fuente_planificado: "sin_dato",
+    unidades_ok: Math.round(Number(resumenRow?.unidades_ok) || 0),
+    unidades_nok: Math.round(Number(resumenRow?.unidades_nok) || 0),
+    unidades_rw: Math.round(Number(resumenRow?.unidades_repro) || 0),
+    unidades_total: Math.round(Number(resumenRow?.unidades_total) || 0),
+    velocidad_uh: toNumber(resumenRow?.velocidad_uh, 1),
+    velocidad_seg_por_pza: toNumber(resumenRow?.velocidad_seg_por_pza, 1),
+    rendimiento_turno_prom: turnos.length
+      ? toNumber(sum(turnos, (t) => t.kpis.rendimiento) / turnos.length, 1)
+      : 0,
+    rendimiento_of: toNumber(resumenRow?.rendimiento_of, 1),
+    disponibilidad_of: toNumber(resumenRow?.disponibilidad_of, 1),
+    calidad_of: toNumber(resumenRow?.calidad_of, 1),
+    oee_of: toNumber(resumenRow?.oee_of, 1),
+    fecha_inicio: (() => {
+      const fecha = parseOptionalDate(resumenRow?.fecha_inicio_rt);
+      return fecha ? fecha.toISOString() : undefined;
+    })(),
+    fecha_fin_real: (() => {
+      const fecha = parseOptionalDate(resumenRow?.fecha_fin_rt);
+      return fecha ? fecha.toISOString() : undefined;
+    })(),
+    fecha_fin_estimada: undefined,
+  };
 
-    const cicloNominalSeg = Number(planRow?.ciclo_nominal_seg) || 0;
-    const rendimientoNominalUH = Number(planRow?.rendimiento_nominal_uh) || 0;
-    const tiempoPorPiezaSeg = cicloNominalSeg > 0
+  const planRow = planRaw[0];
+  let planificado = 0;
+  let fuentePlan: FuenteDato = "sin_dato";
+
+  if (planRow?.unidades_plan_fase != null) {
+    planificado = Number(planRow.unidades_plan_fase) || 0;
+    fuentePlan = "fase";
+  } else if (planRow?.unidades_plan_of != null) {
+    planificado = Number(planRow.unidades_plan_of) || 0;
+    fuentePlan = "of";
+  }
+
+  resumen.planificado = planificado;
+  resumen.fuente_planificado = fuentePlan;
+
+  if (!resumen.desc_maquina && planRow?.Desc_maquina) {
+    resumen.desc_maquina = planRow.Desc_maquina;
+  }
+  if (!resumen.desc_of && planRow?.Desc_of) {
+    resumen.desc_of = planRow.Desc_of;
+  }
+  if (!resumen.cod_of && planRow?.Cod_of) {
+    resumen.cod_of = planRow.Cod_of;
+  }
+
+  if (!resumen.fecha_inicio) {
+    const fechaRt = parseOptionalDate(planRow?.Rt_Fecha_ini);
+    const fechaOf = parseOptionalDate(planRow?.fecha_ini_of);
+    if (fechaRt) resumen.fecha_inicio = fechaRt.toISOString();
+    else if (fechaOf) resumen.fecha_inicio = fechaOf.toISOString();
+  }
+
+  const cicloNominalSeg = Number(planRow?.ciclo_nominal_seg) || 0;
+  const rendimientoNominalUH = Number(planRow?.rendimiento_nominal_uh) || 0;
+  const tiempoPorPiezaSeg =
+    cicloNominalSeg > 0
       ? cicloNominalSeg
       : rendimientoNominalUH > 0
         ? 3600 / rendimientoNominalUH
         : 0;
 
-    const piezasRestantes = Math.max(planificado - resumen.unidades_total, 0);
-    if (tiempoPorPiezaSeg > 0 && piezasRestantes > 0) {
-      const segundosRestantes = piezasRestantes * tiempoPorPiezaSeg;
-      resumen.fecha_fin_estimada = new Date(Date.now() + segundosRestantes * 1000).toISOString();
-    } else if (!resumen.fecha_fin_estimada) {
-      if (planRow?.Rt_Fecha_fin) resumen.fecha_fin_estimada = new Date(planRow.Rt_Fecha_fin).toISOString();
-      else if (planRow?.fecha_fin_of) resumen.fecha_fin_estimada = new Date(planRow.fecha_fin_of).toISOString();
-    }
+  const piezasRestantes = Math.max(planificado - resumen.unidades_total, 0);
+  if (tiempoPorPiezaSeg > 0 && piezasRestantes > 0) {
+    const segundosRestantes = piezasRestantes * tiempoPorPiezaSeg;
+    resumen.fecha_fin_estimada = new Date(
+      Date.now() + segundosRestantes * 1000,
+    ).toISOString();
+  } else if (!resumen.fecha_fin_estimada) {
+    const fechaRtFin = parseOptionalDate(planRow?.Rt_Fecha_fin);
+    const fechaOfFin = parseOptionalDate(planRow?.fecha_fin_of);
+    if (fechaRtFin) resumen.fecha_fin_estimada = fechaRtFin.toISOString();
+    else if (fechaOfFin) resumen.fecha_fin_estimada = fechaOfFin.toISOString();
+  }
 
-    const totalUnidades = sum(turnos, (t) => t.unidades.total);
-    const totalOeePonderado = sum(turnos, (t) => t.kpis.oee * t.unidades.total);
-    const periodoOee = totalUnidades > 0
+  const totalUnidades = sum(turnos, (t) => t.unidades.total);
+  const totalOeePonderado = sum(turnos, (t) => t.kpis.oee * t.unidades.total);
+  const periodoOee =
+    totalUnidades > 0
       ? totalOeePonderado / totalUnidades
       : sum(turnos, (t) => t.kpis.oee) / (turnos.length || 1);
 
-    const periodoVelocidad = resumen.velocidad_uh || toNumber(sum(turnos, (t) => t.kpis.velocidad_uh) / (turnos.length || 1), 1);
+  const periodoVelocidad =
+    resumen.velocidad_uh ||
+    toNumber(sum(turnos, (t) => t.kpis.velocidad_uh) / (turnos.length || 1), 1);
 
-    if (!objetivoVerde) objetivoVerde = 80;
-    if (!objetivoAmarillo) objetivoAmarillo = 65;
+  if (!objetivoVerde) objetivoVerde = 80;
+  if (!objetivoAmarillo) objetivoAmarillo = 65;
 
-    const response: InformesTurnosResponse = {
-      meta: {
-        maquina: params.cod_maquina,
-        desc_maquina: resumen.desc_maquina,
-        of: resumen.cod_of,
-        periodo: {
-          inicio: params.start_date,
-          fin: params.end_date,
-        },
-        split_ativo: params.split_turnos ?? true,
-        timezone: 'Europe/Madrid',
-        objetivo_verde: objetivoVerde,
-        objetivo_amarillo: objetivoAmarillo,
-        fuente_planificado: resumen.fuente_planificado,
+  return {
+    meta: {
+      maquina: params.cod_maquina,
+      desc_maquina: resumen.desc_maquina ?? maquinaInfo?.Desc_maquina,
+      of: resumen.cod_of,
+      periodo: {
+        inicio: params.start_date,
+        fin: params.end_date,
       },
-      turnos,
-      resumen,
-      totais: {
-        periodo_oee: toNumber(periodoOee, 1),
-        periodo_vel_uh: toNumber(periodoVelocidad, 1),
-      },
-    };
-
-    return NextResponse.json(response);
-  } catch (error) {
-    console.error('❌ Error en /api/informes/turnos:', error);
-    return NextResponse.json(
-      {
-        error: 'Error interno del servidor',
-        detalle: error instanceof Error ? error.message : 'Error desconocido',
-      },
-      { status: 500 },
-    );
-  }
+      split_ativo: params.split_turnos ?? true,
+      timezone: "Europe/Madrid",
+      objetivo_verde: objetivoVerde,
+      objetivo_amarillo: objetivoAmarillo,
+      fuente_planificado: resumen.fuente_planificado,
+    },
+    turnos,
+    resumen,
+    totais: {
+      periodo_oee: toNumber(periodoOee, 1),
+      periodo_vel_uh: toNumber(periodoVelocidad, 1),
+    },
+  };
 }

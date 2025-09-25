@@ -1,12 +1,10 @@
-
-import { NextResponse } from 'next/server';
-import { executeQuery } from 'lib/database/connection';
+import { NextResponse } from "next/server";
+import { executeQuery } from "lib/database/connection";
 
 // Mapeo de estados (según MAPEX, para referencia en el código)
 const ID_ACTIVIDAD_PRODUCCION = 2;
 const ID_ACTIVIDAD_PREPARACION = 3;
 const ID_ACTIVIDAD_PAROS = [1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
-
 
 const METRICAS_POR_TURNO_QUERY = `
 -- Parámetros esperados: @cod_maquina, @fecha_inicio, @fecha_fin, @cod_of (opcional)
@@ -25,9 +23,9 @@ rango_dias AS (
 turnos AS (
     SELECT d.dia, 1 AS turno_id, 'MAÑANA' AS turno, DATEADD(HOUR, 6, CAST(d.dia AS DATETIME)) AS turno_inicio, DATEADD(HOUR, 14, CAST(d.dia AS DATETIME)) AS turno_fin FROM rango_dias d
     UNION ALL
-    SELECT d.dia, 2 AS turno_id, 'TARDE' AS turno, DATEADD(HOUR, 14, CAST(d.dia AS DATETIME)) AS turno_inicio, DATEADD(HOUR, 22, CAST(d.dia AS DATETIME)) AS turno_fin FROM rango_dias d
+    SELECT d.dia, 2 AS turno_id, 'TARDE' AS turno, DATEADD(MINUTE, 15, DATEADD(HOUR, 14, CAST(d.dia AS DATETIME))) AS turno_inicio, DATEADD(MINUTE, 30, DATEADD(HOUR, 22, CAST(d.dia AS DATETIME))) AS turno_fin FROM rango_dias d
     UNION ALL
-    SELECT d.dia, 3 AS turno_id, 'NOCHE' AS turno, DATEADD(HOUR, 22, CAST(d.dia AS DATETIME)) AS turno_inicio, DATEADD(HOUR, 30, CAST(d.dia AS DATETIME)) AS turno_fin FROM rango_dias d
+    SELECT d.dia, 3 AS turno_id, 'NOCHE' AS turno, DATEADD(MINUTE, 30, DATEADD(HOUR, 22, CAST(d.dia AS DATETIME))) AS turno_inicio, DATEADD(HOUR, 30, CAST(d.dia AS DATETIME)) AS turno_fin FROM rango_dias d
 ),
 base AS (
     SELECT
@@ -287,16 +285,175 @@ SELECT
 FROM produccion p;
 `;
 
+const OPERADORES_POR_TURNO_QUERY = `
+WITH parametros AS (
+    SELECT
+        @cod_maquina AS cod_maquina,
+        CAST(@fecha_inicio AS DATE) AS fecha_inicio,
+        CAST(@fecha_fin AS DATE) AS fecha_fin,
+        @cod_of AS cod_of
+),
+rango_dias AS (
+    SELECT fecha_inicio AS dia FROM parametros
+    UNION ALL
+    SELECT DATEADD(DAY, 1, rd.dia) FROM rango_dias rd JOIN parametros p ON 1 = 1 WHERE rd.dia < p.fecha_fin
+),
+turnos AS (
+    SELECT d.dia, 1 AS turno_id, 'MAÑANA' AS turno, DATEADD(HOUR, 6, CAST(d.dia AS DATETIME)) AS turno_inicio, DATEADD(HOUR, 14, CAST(d.dia AS DATETIME)) AS turno_fin FROM rango_dias d
+    UNION ALL
+    SELECT d.dia, 2 AS turno_id, 'TARDE' AS turno, DATEADD(MINUTE, 15, DATEADD(HOUR, 14, CAST(d.dia AS DATETIME))) AS turno_inicio, DATEADD(MINUTE, 30, DATEADD(HOUR, 22, CAST(d.dia AS DATETIME))) AS turno_fin FROM rango_dias d
+    UNION ALL
+    SELECT d.dia, 3 AS turno_id, 'NOCHE' AS turno, DATEADD(MINUTE, 30, DATEADD(HOUR, 22, CAST(d.dia AS DATETIME))) AS turno_inicio, DATEADD(HOUR, 30, CAST(d.dia AS DATETIME)) AS turno_fin FROM rango_dias d
+),
+base AS (
+    SELECT
+        hp.Id_his_prod, hp.Id_maquina, hp.Id_his_fase, hp.Id_actividad, hp.Id_operario, hp.OperFinal, hp.OPER, hp.NumOper,
+        hp.Fecha_ini, hp.Fecha_fin,
+        hp.Unidades_ok, hp.Unidades_nok, hp.Unidades_repro,
+        hp.PP, hp.PNP, hp.PCALIDAD,
+        hf.Id_his_of, ho.Cod_of,
+        hf.Unidades_planning AS unidades_plan_fase,
+        ho.Unidades_planning AS unidades_plan_of,
+        COALESCE(NULLIF(hf.SegCicloNominal, 0), NULLIF(cm.SegCicloNominal, 0), NULLIF(cm.rt_SegCicloNominal, 0)) AS ciclo_nominal_seg,
+        COALESCE(NULLIF(hf.Rendimientonominal1, 0), NULLIF(cm.Rt_Rendimientonominal1, 0)) AS rendimiento_nominal_uh,
+        cm.Cod_maquina, cm.Ag_Rt_Disp_Turno, cm.Ag_Rt_Rend_Turno, cm.Ag_Rt_OEE_Turno, cm.Ag_Rt_Cal_Turno,
+        cm.ObjetivoOEEVerde, cm.ObjetivoOEENaranja, cm.Rt_Dia_productivo, cm.Rt_Id_turno
+    FROM his_prod hp
+    INNER JOIN cfg_maquina cm ON cm.Id_maquina = hp.Id_maquina
+    INNER JOIN his_fase hf ON hp.Id_his_fase = hf.Id_his_fase
+    INNER JOIN his_of ho ON hf.Id_his_of = ho.Id_his_of
+    JOIN parametros p ON 1 = 1
+    WHERE cm.Cod_maquina = p.cod_maquina AND cm.Activo = 1
+      AND hp.Fecha_fin > CAST(p.fecha_inicio AS DATETIME) AND hp.Fecha_ini < DATEADD(DAY, 1, CAST(p.fecha_fin AS DATETIME))
+      AND hp.Fecha_ini < hp.Fecha_fin AND (hp.Activo = 1 OR hp.Activo IS NULL)
+      AND (p.cod_of IS NULL OR ho.Cod_of = p.cod_of)
+),
+split AS (
+    SELECT
+        t.turno, t.turno_id, t.turno_inicio, t.turno_fin,
+        b.*,
+        CASE
+            WHEN b.Fecha_ini < t.turno_fin AND b.Fecha_fin > t.turno_inicio
+            THEN DATEDIFF(SECOND,
+                CASE WHEN b.Fecha_ini > t.turno_inicio THEN b.Fecha_ini ELSE t.turno_inicio END,
+                CASE WHEN b.Fecha_fin < t.turno_fin THEN b.Fecha_fin ELSE t.turno_fin END)
+            ELSE 0
+        END AS segundos_turno,
+        DATEDIFF(SECOND, b.Fecha_ini, b.Fecha_fin) AS segundos_total
+    FROM base b
+    INNER JOIN turnos t ON b.Fecha_ini < t.turno_fin AND b.Fecha_fin > t.turno_inicio
+),
+split_valid AS (
+    SELECT
+        *,
+        ratio = CASE WHEN segundos_total > 0 THEN segundos_turno * 1.0 / segundos_total ELSE 0 END,
+        unidades_ok_parcial = ISNULL(Unidades_ok, 0) * CASE WHEN segundos_total > 0 THEN segundos_turno * 1.0 / segundos_total ELSE 0 END,
+        unidades_nok_parcial = ISNULL(Unidades_nok, 0) * CASE WHEN segundos_total > 0 THEN segundos_turno * 1.0 / segundos_total ELSE 0 END,
+        unidades_repro_parcial = ISNULL(Unidades_repro, 0) * CASE WHEN segundos_total > 0 THEN segundos_turno * 1.0 / segundos_total ELSE 0 END,
+        unidades_total_parcial = (ISNULL(Unidades_ok, 0) + ISNULL(Unidades_nok, 0) + ISNULL(Unidades_repro, 0)) * CASE WHEN segundos_total > 0 THEN segundos_turno * 1.0 / segundos_total ELSE 0 END,
+        segundos_prod_parcial = CASE WHEN Id_actividad = ${ID_ACTIVIDAD_PRODUCCION} THEN segundos_turno ELSE 0 END,
+        segundos_prep_parcial = CASE WHEN Id_actividad = ${ID_ACTIVIDAD_PREPARACION} THEN segundos_turno ELSE 0 END,
+        segundos_pp_parcial = ISNULL(PP, 0) * CASE WHEN segundos_total > 0 THEN segundos_turno * 1.0 / segundos_total ELSE 0 END,
+        segundos_pnp_parcial = ISNULL(PNP, 0) * CASE WHEN segundos_total > 0 THEN segundos_turno * 1.0 / segundos_total ELSE 0 END,
+        segundos_pcalidad_parcial = ISNULL(PCALIDAD, 0) * CASE WHEN segundos_total > 0 THEN segundos_turno * 1.0 / segundos_total ELSE 0 END
+    FROM split
+    WHERE segundos_turno > 0
+),
+operadores AS (
+    SELECT
+        turno,
+        Id_operario,
+        operador_nombre,
+        legajo,
+        SUM(unidades_ok_parcial) AS unidades_ok,
+        SUM(unidades_nok_parcial) AS unidades_nok,
+        SUM(unidades_repro_parcial) AS unidades_repro,
+        SUM(unidades_total_parcial) AS unidades_total,
+        SUM(segundos_prod_parcial) AS segundos_prod,
+        SUM(segundos_prep_parcial) AS segundos_prep,
+        SUM(segundos_pp_parcial) AS segundos_pp,
+        SUM(segundos_pnp_parcial) AS segundos_pnp,
+        SUM(segundos_pcalidad_parcial) AS segundos_pcalidad,
+        SUM(segundos_prod_parcial + segundos_pp_parcial + segundos_pnp_parcial + segundos_pcalidad_parcial) AS segundos_disponibles,
+        SUM(CASE
+            WHEN Id_actividad = ${ID_ACTIVIDAD_PRODUCCION} THEN
+                CASE
+                    WHEN ciclo_nominal_seg > 0 THEN segundos_turno * 1.0 / ciclo_nominal_seg
+                    WHEN rendimiento_nominal_uh > 0 THEN (segundos_turno / 3600.0) * rendimiento_nominal_uh
+                    ELSE 0
+                END
+            ELSE 0
+        END) AS produccion_teorica
+    FROM (
+        SELECT
+            sv.*,
+            operador_nombre = COALESCE(
+                NULLIF(LTRIM(RTRIM(CAST(sv.OperFinal AS NVARCHAR(200)))), ''),
+                NULLIF(LTRIM(RTRIM(CAST(sv.OPER AS NVARCHAR(200)))), ''),
+                CONCAT('Operario ', COALESCE(CAST(sv.Id_operario AS NVARCHAR(50)), 'S/D'))
+            ),
+            legajo = COALESCE(
+                NULLIF(LTRIM(RTRIM(CAST(sv.NumOper AS NVARCHAR(50)))), ''),
+                NULLIF(LTRIM(RTRIM(CAST(sv.Id_operario AS NVARCHAR(50)))), '')
+            )
+        FROM split_valid sv
+    ) datos
+    GROUP BY turno, Id_operario, operador_nombre, legajo
+)
+SELECT
+    turno,
+    id_operario = Id_operario,
+    operario_nombre = CASE WHEN operador_nombre IS NULL OR LTRIM(RTRIM(operador_nombre)) = '' THEN 'Sin operador' ELSE operador_nombre END,
+    legajo,
+    unidades_ok = CAST(unidades_ok AS DECIMAL(18,2)),
+    unidades_nok = CAST(unidades_nok AS DECIMAL(18,2)),
+    unidades_repro = CAST(unidades_repro AS DECIMAL(18,2)),
+    unidades_total = CAST(unidades_total AS DECIMAL(18,2)),
+    segundos_prod = CAST(segundos_prod AS DECIMAL(18,2)),
+    segundos_prep = CAST(segundos_prep AS DECIMAL(18,2)),
+    segundos_pp = CAST(segundos_pp AS DECIMAL(18,2)),
+    segundos_pnp = CAST(segundos_pnp AS DECIMAL(18,2)),
+    segundos_pcalidad = CAST(segundos_pcalidad AS DECIMAL(18,2)),
+    segundos_paro = CAST(segundos_pp + segundos_pnp + segundos_pcalidad AS DECIMAL(18,2)),
+    disponibilidad = CASE WHEN segundos_disponibles > 0 THEN CAST((segundos_prod * 100.0) / segundos_disponibles AS DECIMAL(8,2)) ELSE 0 END,
+    rendimiento = CASE WHEN produccion_teorica > 0 THEN CAST((unidades_total * 100.0) / produccion_teorica AS DECIMAL(8,2)) ELSE 0 END,
+    calidad = CASE WHEN (unidades_ok + unidades_nok) > 0 THEN CAST((unidades_ok * 100.0) / (unidades_ok + unidades_nok) AS DECIMAL(8,2)) ELSE 0 END,
+    oee = CAST(ROUND(
+        (CASE WHEN segundos_disponibles > 0 THEN (segundos_prod * 100.0) / segundos_disponibles ELSE 0 END / 100.0) *
+        (CASE WHEN produccion_teorica > 0 THEN (unidades_total * 100.0) / produccion_teorica ELSE 0 END / 100.0) *
+        (CASE WHEN (unidades_ok + unidades_nok) > 0 THEN (unidades_ok * 100.0) / (unidades_ok + unidades_nok) ELSE 0 END / 100.0) * 100.0,
+        2
+    ) AS DECIMAL(8,2)),
+    velocidad_uh = CASE WHEN segundos_prod > 0 THEN CAST((unidades_total * 3600.0) / segundos_prod AS DECIMAL(10,2)) ELSE 0 END,
+    seg_por_pza = CASE WHEN unidades_total > 0 THEN CAST(segundos_prod / unidades_total AS DECIMAL(10,2)) ELSE 0 END
+FROM operadores
+WHERE (unidades_total > 0 OR segundos_prod > 0 OR segundos_prep > 0 OR segundos_pp > 0 OR segundos_pnp > 0 OR segundos_pcalidad > 0)
+ORDER BY CASE turno WHEN 'MAÑANA' THEN 1 WHEN 'TARDE' THEN 2 WHEN 'NOCHE' THEN 3 ELSE 4 END,
+         unidades_total DESC
+OPTION (MAXRECURSION 0);
+`;
+
+const SHIFT_DEFINITIONS = [
+  { turno: "MAÑANA", startHour: 6, startMinute: 0, endHour: 14, endMinute: 0, crossesMidnight: false },
+  { turno: "TARDE", startHour: 14, startMinute: 15, endHour: 22, endMinute: 30, crossesMidnight: false },
+  { turno: "NOCHE", startHour: 22, startMinute: 30, endHour: 6, endMinute: 0, crossesMidnight: true },
+];
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const cod_maquina = searchParams.get('cod_maquina');
-  const fecha_inicio = searchParams.get('fecha_inicio');
-  const fecha_fin = searchParams.get('fecha_fin');
-  const cod_of = searchParams.get('cod_of');
+  const cod_maquina = searchParams.get("cod_maquina");
+  const fecha_inicio = searchParams.get("fecha_inicio");
+  const fecha_fin = searchParams.get("fecha_fin");
+  const cod_of = searchParams.get("cod_of");
 
   if (!cod_maquina || !fecha_inicio || !fecha_fin) {
-    return NextResponse.json({ error: 'Faltan parámetros requeridos: cod_maquina, fecha_inicio, fecha_fin' }, { status: 400 });
+    return NextResponse.json(
+      {
+        error:
+          "Faltan parámetros requeridos: cod_maquina, fecha_inicio, fecha_fin",
+      },
+      { status: 400 },
+    );
   }
 
   try {
@@ -307,23 +464,134 @@ export async function GET(request: Request) {
       cod_of: cod_of ?? null,
     } as const;
 
-    const [turnosResult, globalesResult, planificacionResult] = await Promise.all([
-      executeQuery(METRICAS_POR_TURNO_QUERY, parametros, 'mapex'),
-      executeQuery(GLOBALES_OF_QUERY, parametros, 'mapex'),
-      executeQuery(PLANIFICACION_QUERY, parametros, 'mapex'),
-    ]);
+    const [turnosResult, operadoresResult, globalesResult, planificacionResult] =
+      await Promise.all([
+        executeQuery(METRICAS_POR_TURNO_QUERY, parametros, "mapex"),
+        executeQuery(OPERADORES_POR_TURNO_QUERY, parametros, "mapex"),
+        executeQuery(GLOBALES_OF_QUERY, parametros, "mapex"),
+        executeQuery(PLANIFICACION_QUERY, parametros, "mapex"),
+      ]);
+
+    const operadoresPorTurno = (operadoresResult as any[]).reduce(
+      (acc, item) => {
+        const turnoKey = item.turno as string;
+        if (!acc[turnoKey]) acc[turnoKey] = [];
+        acc[turnoKey].push(item);
+        return acc;
+      },
+      {} as Record<string, any[]>,
+    );
+
+    const turnosConOperarios = (turnosResult as any[]).map((turno) => ({
+      ...turno,
+      operarios: operadoresPorTurno[turno.turno] ?? [],
+    }));
+
+    const planificacionInfo = planificacionResult[0] || {};
+    const objetivoVerdeBase = turnosConOperarios.find((t) => t.objetivo_verde != null)?.objetivo_verde
+      ?? planificacionInfo.objetivo_oee_verde
+      ?? 80;
+    const objetivoAmarilloBase = turnosConOperarios.find((t) => t.objetivo_amarillo != null)?.objetivo_amarillo
+      ?? planificacionInfo.objetivo_oee_naranja
+      ?? 65;
+
+    const ensureNumber = (value: unknown, fallback = 0) => {
+      if (value === null || value === undefined) return fallback;
+      const numeric = Number(value);
+      return Number.isFinite(numeric) ? numeric : fallback;
+    };
+
+    const fechaBase = new Date(`${fecha_inicio}T00:00:00`);
+    const ahora = new Date();
+
+    const filledTurnos = SHIFT_DEFINITIONS.map((def) => {
+      const baseStart = new Date(fechaBase);
+      baseStart.setHours(def.startHour, def.startMinute, 0, 0);
+      const baseEnd = new Date(fechaBase);
+      if (def.crossesMidnight || (def.endHour < def.startHour)) {
+        baseEnd.setDate(baseEnd.getDate() + 1);
+      }
+      baseEnd.setHours(def.endHour, def.endMinute, 0, 0);
+
+      const existingIndex = turnosConOperarios.findIndex((t) => t.turno === def.turno);
+      const existing = existingIndex >= 0 ? turnosConOperarios[existingIndex] : null;
+
+      const baseTurno = existing
+        ? { ...existing }
+        : {
+            turno: def.turno,
+            ventana_inicio: baseStart.toISOString(),
+            ventana_fin: baseEnd.toISOString(),
+            unidades_ok: 0,
+            unidades_nok: 0,
+            unidades_repro: 0,
+            unidades_total: 0,
+            segundos_prod: 0,
+            segundos_prep: 0,
+            segundos_pp: 0,
+            segundos_pnp: 0,
+            segundos_pcalidad: 0,
+            velocidad_uh: 0,
+            seg_por_pza: 0,
+            oee_turno: 0,
+            disponibilidad_turno: 0,
+            rendimiento_turno: 0,
+            calidad_turno: 0,
+            objetivo_verde: objetivoVerdeBase,
+            objetivo_amarillo: objetivoAmarilloBase,
+            operarios: [] as any[],
+          };
+
+      baseTurno.ventana_inicio = baseTurno.ventana_inicio ?? baseStart.toISOString();
+      baseTurno.ventana_fin = baseTurno.ventana_fin ?? baseEnd.toISOString();
+      baseTurno.objetivo_verde = ensureNumber(baseTurno.objetivo_verde, objetivoVerdeBase);
+      baseTurno.objetivo_amarillo = ensureNumber(baseTurno.objetivo_amarillo, objetivoAmarilloBase);
+      baseTurno.operarios = baseTurno.operarios ?? [];
+
+      baseTurno.unidades_ok = ensureNumber(baseTurno.unidades_ok);
+      baseTurno.unidades_nok = ensureNumber(baseTurno.unidades_nok);
+      baseTurno.unidades_repro = ensureNumber(baseTurno.unidades_repro);
+      baseTurno.unidades_total = ensureNumber(baseTurno.unidades_total);
+      baseTurno.segundos_prod = ensureNumber(baseTurno.segundos_prod);
+      baseTurno.segundos_prep = ensureNumber(baseTurno.segundos_prep);
+      baseTurno.segundos_pp = ensureNumber(baseTurno.segundos_pp);
+      baseTurno.segundos_pnp = ensureNumber(baseTurno.segundos_pnp);
+      baseTurno.segundos_pcalidad = ensureNumber(baseTurno.segundos_pcalidad);
+      baseTurno.velocidad_uh = ensureNumber(baseTurno.velocidad_uh);
+      baseTurno.seg_por_pza = ensureNumber(baseTurno.seg_por_pza);
+      baseTurno.oee_turno = ensureNumber(baseTurno.oee_turno);
+      baseTurno.disponibilidad_turno = ensureNumber(baseTurno.disponibilidad_turno);
+      baseTurno.rendimiento_turno = ensureNumber(baseTurno.rendimiento_turno);
+      baseTurno.calidad_turno = ensureNumber(baseTurno.calidad_turno);
+
+      const estado_turno = ahora < baseStart ? 'no_iniciado' : ahora >= baseStart && ahora < baseEnd ? 'en_curso' : 'finalizado';
+      const ultima_actualizacion = estado_turno === 'en_curso' ? new Date().toISOString() : baseTurno.ventana_fin;
+
+      return {
+        ...baseTurno,
+        estado_turno,
+        ventana_inicio: baseTurno.ventana_inicio,
+        ventana_fin: baseTurno.ventana_fin,
+        ultima_actualizacion,
+      };
+    });
 
     const responseData = {
-      turnos: turnosResult,
+      turnos: filledTurnos,
       globales_of: globalesResult[0] || {},
-      planificacion: planificacionResult[0] || {},
+      planificacion: planificacionInfo,
     };
 
     return NextResponse.json(responseData);
-
   } catch (error) {
-    console.error('Error al obtener los datos de informes:', error);
-    const errorMessage = (error instanceof Error) ? error.message : 'Error desconocido en el servidor';
-    return NextResponse.json({ error: 'Error al procesar la solicitud.', details: errorMessage }, { status: 500 });
+    console.error("Error al obtener los datos de informes:", error);
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Error desconocido en el servidor";
+    return NextResponse.json(
+      { error: "Error al procesar la solicitud.", details: errorMessage },
+      { status: 500 },
+    );
   }
 }
