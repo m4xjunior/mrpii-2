@@ -80,29 +80,33 @@ export default function OEECharts({ machineId, data, isLoading, isDark = false, 
     { id: 'pareto', label: 'Pareto', icon: 'fas fa-chart-pie' },
   ];
 
+  // Forçar visual claro por padrão (independente de isDark) quando themeColors existir
+  const forceLight = true;
+
   return (
     <div className="oee-charts-container" style={{
-      background: isDark ? '#1a1a1a' : '#ffffff',
+      background: forceLight ? '#ffffff' : (isDark ? '#1a1a1a' : '#ffffff'),
       borderRadius: '16px',
       padding: '24px',
-      boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+      border: '1px solid #e5e7eb',
+      boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
     }}>
       {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
           <h4 className="mb-1" style={{
             fontWeight: '700',
-            color: themeColors?.text || (isDark ? '#ffffff' : '#333')
+            color: themeColors?.text || (forceLight ? '#111827' : (isDark ? '#ffffff' : '#333'))
           }}>
             <i className="fas fa-analytics me-2" style={{ color: themeColors?.primary || '#667eea' }}></i>
             Análisis de Eficiencia (OEE)
           </h4>
           <p className="mb-0" style={{
             fontSize: '0.9rem',
-            color: themeColors?.textSecondary || (isDark ? '#a0a0a0' : '#6c757d')
+            color: themeColors?.textSecondary || (forceLight ? '#6b7280' : (isDark ? '#a0a0a0' : '#6c757d'))
           }}>
             {machineId ? `Máquina: ${machineId}` : 'Vista general'} •
-            OEE Promedio: {(data.summary?.avg_oee || 0).toFixed(1)}%
+            OEE Promedio: {data.summary?.avg_oee || 0}%
           </p>
         </div>
 
@@ -113,9 +117,9 @@ export default function OEECharts({ machineId, data, isLoading, isDark = false, 
             onChange={(e) => setTimeRange(e.target.value)}
             style={{
               width: '140px',
-              background: isDark ? '#2a2a2a' : '#ffffff',
-              border: `1px solid ${isDark ? '#404040' : '#d0d0d0'}`,
-              color: isDark ? '#ffffff' : '#333'
+              background: '#ffffff',
+              border: `1px solid #e5e7eb`,
+              color: '#111827'
             }}
           >
             <option value="1d">Último Día</option>
@@ -144,16 +148,16 @@ export default function OEECharts({ machineId, data, isLoading, isDark = false, 
               onClick={() => setActiveChart(tab.id)}
               style={{
                 borderRadius: '12px',
-                background: activeChart === tab.id
+              background: activeChart === tab.id
                   ? `linear-gradient(135deg, ${themeColors?.primary || '#667eea'} 0%, ${themeColors?.secondary || '#764ba2'} 100%)`
-                  : isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                : 'rgba(0,0,0,0.03)',
                 transition: 'all 0.3s ease',
                 fontWeight: activeChart === tab.id ? '600' : '500',
                 minWidth: '130px',
                 color: activeChart === tab.id
                   ? '#ffffff'
-                  : (themeColors?.textSecondary || (isDark ? '#a0a0a0' : '#6c757d')),
-                border: isDark && activeChart !== tab.id ? `1px solid ${themeColors?.border || '#555'}` : 'none'
+                  : (themeColors?.textSecondary || '#6b7280'),
+                border: activeChart !== tab.id ? `1px solid #e5e7eb` : 'none'
               }}
             >
               <i className={`${tab.icon} me-2`}></i>
@@ -165,9 +169,9 @@ export default function OEECharts({ machineId, data, isLoading, isDark = false, 
 
       {/* Contenido de gráficos */}
       <div className="chart-content" style={{
-        background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
-        borderRadius: '15px',
-        border: isDark ? `1px solid ${themeColors?.border || '#404040'}` : 'none',
+        background: 'rgba(0,0,0,0.02)',
+        borderRadius: '12px',
+        border: '1px solid #e5e7eb',
         padding: '16px'
       }}>
         {activeChart === 'oee' && <OEETrendChart data={data.oee_history} isDark={isDark} themeColors={themeColors} />}
@@ -188,7 +192,7 @@ export default function OEECharts({ machineId, data, isLoading, isDark = false, 
               <div className="d-flex align-items-center">
                 <div>
                   <h3 className="mb-0 text-white" style={{ fontWeight: '700' }}>
-                    {(data.summary?.avg_oee || 0).toFixed(1)}%
+                    {data.summary?.avg_oee || 0}%
                   </h3>
                 </div>
                 <div className="ms-auto font-35 text-white">
@@ -217,7 +221,7 @@ export default function OEECharts({ machineId, data, isLoading, isDark = false, 
               <div className="d-flex align-items-center">
                 <div>
                   <h3 className="mb-0 text-white" style={{ fontWeight: '700' }}>
-                    {(data.summary?.avg_disponibilidad || 0).toFixed(1)}%
+                    {data.summary?.avg_disponibilidad || 0}%
                   </h3>
                 </div>
                 <div className="ms-auto font-35 text-white">
@@ -229,7 +233,7 @@ export default function OEECharts({ machineId, data, isLoading, isDark = false, 
                   <p className="mb-0 text-white" style={{ fontSize: '0.9rem', opacity: 0.9 }}>Disponibilidad</p>
                 </div>
                 <div className="ms-auto text-white" style={{ fontSize: '0.8rem', opacity: 0.8 }}>
-                  {(data.summary?.total_downtime_hours || 0).toFixed(1)}h paradas
+                  {data.summary?.total_downtime_hours || 0}h paradas
                 </div>
               </div>
             </div>
@@ -246,7 +250,7 @@ export default function OEECharts({ machineId, data, isLoading, isDark = false, 
               <div className="d-flex align-items-center">
                 <div>
                   <h3 className="mb-0 text-white" style={{ fontWeight: '700' }}>
-                    {(data.summary?.avg_rendimiento || 0).toFixed(1)}%
+                    {data.summary?.avg_rendimiento || 0}%
                   </h3>
                 </div>
                 <div className="ms-auto font-35 text-white">
@@ -275,7 +279,7 @@ export default function OEECharts({ machineId, data, isLoading, isDark = false, 
               <div className="d-flex align-items-center">
                 <div>
                   <h3 className="mb-0 text-white" style={{ fontWeight: '700' }}>
-                    {(data.summary?.avg_calidad || 0).toFixed(1)}%
+                    {data.summary?.avg_calidad || 0}%
                   </h3>
                 </div>
                 <div className="ms-auto font-35 text-white">
@@ -287,7 +291,7 @@ export default function OEECharts({ machineId, data, isLoading, isDark = false, 
                   <p className="mb-0 text-white" style={{ fontSize: '0.9rem', opacity: 0.9 }}>Calidad</p>
                 </div>
                 <div className="ms-auto text-white" style={{ fontSize: '0.8rem', opacity: 0.8 }}>
-                  {(data.summary?.eficiencia || 0).toFixed(1)}% eficiente
+                  {data.summary?.eficiencia || 0}% eficiente
                 </div>
               </div>
             </div>
@@ -389,7 +393,7 @@ function OEETrendChart({ data, isDark = false, themeColors }: { data: any[], isD
             return new Date(context[0].label).toLocaleString('es-ES');
           },
           label: (context: any) => {
-            return `${context.dataset.label}: ${context.parsed.y.toFixed(1)}%`;
+            return `${context.dataset.label}: ${context.parsed.y}%`;
           },
         },
       },
@@ -659,7 +663,7 @@ function DowntimeChart({ data, isDark = false, themeColors }: { data: any[], isD
             return sortedCausas[index][0]; // Etiqueta completa
           },
           label: (context: any) => {
-            return `Horas: ${context.parsed.y.toFixed(1)}h`;
+            return `Horas: ${context.parsed.y}h`;
           },
         },
       },
@@ -810,9 +814,9 @@ function ParetoChart({ data, isDark = false, themeColors }: { data: any[], isDar
           },
           label: (context: any) => {
             if (context.datasetIndex === 0) {
-              return `Horas: ${context.parsed.y.toFixed(1)}h`;
+              return `Horas: ${context.parsed.y}h`;
             } else {
-              return `Acumulado: ${context.parsed.y.toFixed(1)}%`;
+              return `Acumulado: ${context.parsed.y}%`;
             }
           },
         },

@@ -42,7 +42,7 @@ export default function ShiftCharts({ shiftData, isDark = false, themeColors }: 
     return (
       <div className="text-center py-4">
         <i className="fas fa-chart-bar text-muted mb-2" style={{ fontSize: '24px' }}></i>
-        <p style={{ color: themeColors?.textSecondary || (isDark ? '#a0a0a0' : '#6c757d') }}>
+        <p style={{ color: themeColors?.textSecondary || '#6b7280' }}>
           No hay datos por turno disponibles
         </p>
       </div>
@@ -94,10 +94,10 @@ export default function ShiftCharts({ shiftData, isDark = false, themeColors }: 
         },
       },
       tooltip: {
-        backgroundColor: isDark ? 'rgba(0,0,0,0.9)' : 'rgba(255,255,255,0.95)',
-        titleColor: themeColors?.text || (isDark ? '#ffffff' : '#333'),
-        bodyColor: themeColors?.text || (isDark ? '#ffffff' : '#333'),
-        borderColor: themeColors?.border || (isDark ? '#555' : '#ddd'),
+        backgroundColor: 'rgba(255,255,255,0.95)',
+        titleColor: themeColors?.text || '#111827',
+        bodyColor: themeColors?.text || '#111827',
+        borderColor: themeColors?.border || '#e5e7eb',
         borderWidth: 1,
         cornerRadius: 8,
         callbacks: {
@@ -112,19 +112,19 @@ export default function ShiftCharts({ shiftData, isDark = false, themeColors }: 
         title: {
           display: true,
           text: 'OEE (%)',
-          color: themeColors?.text || (isDark ? '#ffffff' : '#333'),
+          color: themeColors?.text || '#111827',
           font: {
             size: 12,
             weight: 'bold' as const,
           },
         },
         ticks: {
-          color: themeColors?.textSecondary || (isDark ? '#a0a0a0' : '#666'),
+          color: themeColors?.textSecondary || '#6b7280',
           font: { size: 11 },
           callback: (value: any) => `${value}%`,
         },
         grid: {
-          color: themeColors?.border || (isDark ? '#404040' : '#e0e0e0'),
+          color: themeColors?.border || '#e5e7eb',
           drawBorder: false,
         },
       },

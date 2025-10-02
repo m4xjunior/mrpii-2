@@ -78,8 +78,10 @@ $(function () {
 			categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
 		}
 	};
-	var chart = new ApexCharts(document.querySelector("#chart1"), options);
-	chart.render();
+	if (document.querySelector("#chart1")) {
+		var chart = new ApexCharts(document.querySelector("#chart1"), options);
+		chart.render();
+	}
 	// chart 2
 	var options = {
 		series: [44, 55, 60, 17],
@@ -121,8 +123,10 @@ $(function () {
 			}
 		}]
 	};
-	var chart = new ApexCharts(document.querySelector("#chart2"), options);
-	chart.render();
+	if (document.querySelector("#chart2")) {
+		var chart = new ApexCharts(document.querySelector("#chart2"), options);
+		chart.render();
+	}
 	// chart 3
 	var options1 = {
 		chart: {
@@ -200,7 +204,9 @@ $(function () {
 			}
 		}
 	}
-	new ApexCharts(document.querySelector("#chart3"), options1).render();
+	if (document.querySelector("#chart3")) {
+		new ApexCharts(document.querySelector("#chart3"), options1).render();
+	}
 	// chart 4
 	var options = {
 		series: [{
@@ -268,8 +274,10 @@ $(function () {
 			},
 		},
 	};
-	var chart = new ApexCharts(document.querySelector("#chart4"), options);
-	chart.render();
+	if (document.querySelector("#chart4")) {
+		var chart = new ApexCharts(document.querySelector("#chart4"), options);
+		chart.render();
+	}
 	// chart 5
 	var options = {
 		series: [{
@@ -337,8 +345,10 @@ $(function () {
 			},
 		},
 	};
-	var chart = new ApexCharts(document.querySelector("#chart5"), options);
-	chart.render();
+	if (document.querySelector("#chart5")) {
+		var chart = new ApexCharts(document.querySelector("#chart5"), options);
+		chart.render();
+	}
 	// chart 6
 	var options = {
 		series: [{
@@ -406,8 +416,10 @@ $(function () {
 			},
 		},
 	};
-	var chart = new ApexCharts(document.querySelector("#chart6"), options);
-	chart.render();
+	if (document.querySelector("#chart6")) {
+		var chart = new ApexCharts(document.querySelector("#chart6"), options);
+		chart.render();
+	}
 	// chart 7
 	var options = {
 		series: [{
@@ -475,8 +487,10 @@ $(function () {
 			},
 		},
 	};
-	var chart = new ApexCharts(document.querySelector("#chart7"), options);
-	chart.render();
+	if (document.querySelector("#chart7")) {
+		var chart = new ApexCharts(document.querySelector("#chart7"), options);
+		chart.render();
+	}
 	// chart 8
 	var options = {
 		series: [{
@@ -557,10 +571,15 @@ $(function () {
 			}
 		}
 	};
-	var chart = new ApexCharts(document.querySelector("#chart8"), options);
-	chart.render();
+	if (document.querySelector("#chart8")) {
+		var chart = new ApexCharts(document.querySelector("#chart8"), options);
+		chart.render();
+	}
 });
-jQuery('#location-map').vectorMap({
+
+$(document).ready(function() {
+  if (document.querySelector('#location-map')) {
+    jQuery('#location-map').vectorMap({
 	map: 'world_mill_en',
 	backgroundColor: 'transparent',
 	borderColor: '#818181',
@@ -599,4 +618,6 @@ jQuery('#location-map').vectorMap({
 		var message = 'You clicked "' + region + '" which has the code: ' + code.toUpperCase();
 		alert(message);
 	}
+    });
+  }
 });

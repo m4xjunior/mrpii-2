@@ -1,6 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '../../../../../lib/database/connection';
+import { executeQuery, getMachinesProductionData, getDatabaseHealth } from '../../../../../lib/database/connection';
+import { roundToDecimal } from '../../../../lib/shared';
 import { calculateOEEForOF, calculateRemainingTime } from '../../../../../lib/oee/calculations';
+
+// API adicional para monitoramento de saúde do banco
+export async function GET() {
+  try {
+    const health = await getDatabaseHealth();
+
+    return NextResponse.json({
+      success: true,
+      health,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Erro ao obter saúde do banco:', error);
+    return NextResponse.json({
+      success: false,
+      error: 'Erro ao verificar saúde do banco de dados',
+      timestamp: new Date().toISOString()
+    }, { status: 500 });
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -180,14 +201,14 @@ async function getOFData(machineId: string) {
       (row.Unidades_ok || 0) + (row.Rt_Unidades_nok || 0) + (row.Unidades_rw || 0);
 
     const avance = row.Rt_Unidades_planning > 0 ?
-      Math.round((total_produced / row.Rt_Unidades_planning) * 10000) / 100 : 0;
+      roundToDecimal((total_produced / row.Rt_Unidades_planning) * 100, 1) : 0;
 
     const remaining_pieces = row.Rt_Unidades_planning - total_produced;
     const remaining_time = calculateRemainingTime(remaining_pieces, row.f_velocidad || 0);
 
     // Calcular desviación (calidad)
     const desviacion = total_produced > 0 ?
-      Math.round(((row.Rt_Unidades_nok || 0) / total_produced) * 10000) / 100 : 0;
+      roundToDecimal(((row.Rt_Unidades_nok || 0) / total_produced) * 100, 1) : 0;
 
     return {
       // Información básica
@@ -217,10 +238,10 @@ async function getOFData(machineId: string) {
 
       // Información adicional para UI
       status: {
-        avance_class: avance >= 90 ? 'success' : (avance >= 70 ? 'warning' : 'danger'),
+        avance_class: (avance || 0) >= 90 ? 'success' : ((avance || 0) >= 70 ? 'warning' : 'danger'),
         tiempo_class: remaining_pieces > 0 && row.f_velocidad > 0 ?
           (remaining_pieces / row.f_velocidad > 24 ? 'warning' : 'success') : 'info',
-        desviacion_class: desviacion > 5 ? 'danger' : 'success'
+        desviacion_class: (desviacion || 0) > 5 ? 'danger' : 'success'
       }
     };
   } catch (error) {
@@ -356,9 +377,9 @@ async function getProduccionData(machineId: string) {
     const total = (machineData.ok || 0) + (machineData.nok || 0) + (machineData.rw || 0);
 
     // Calcular eficiencia básica (OK / Total)
-    const efficiency = total > 0 ? Math.round(((machineData.ok || 0) / total) * 100) : 0;
+    const efficiency = total > 0 ? roundToDecimal(((machineData.ok || 0) / total) * 100, 1) : 0;
 
-    // Buscar dados reais da produção atual da máquina (sem histórico)
+    // Buscar dados reais da produção atual da máquina (otimizado)
     let realOk = machineData.ok || 0;
     let realNok = machineData.nok || 0;
     let realRw = machineData.rw || 0;
@@ -366,18 +387,8 @@ async function getProduccionData(machineId: string) {
     let realShift = machineData.rt_desc_turno || '';
 
     try {
-      const sql_current = `
-        SELECT TOP 1
-          Rt_Unidades_ok_of as ok,
-          Rt_Unidades_nok_of as nok,
-          Rt_Unidades_repro_of as rw,
-          Rt_Desc_operario as operator,
-          rt_desc_turno as shift
-        FROM cfg_maquina
-        WHERE Cod_maquina = '${machineId}'
-      `;
-
-      const currentResult = await executeQuery(sql_current, undefined, 'mapex');
+      // Usar consulta em lote para obter dados atuais de todas as máquinas necessárias
+      const currentResult = await getMachinesProductionData([machineId], 'mapex');
       if (currentResult.length > 0) {
         const currentData = currentResult[0];
         realOk = currentData.ok || 0;
@@ -407,7 +418,7 @@ async function getProduccionData(machineId: string) {
 
     // Calcular eficiencia com dados reais
     const realTotal = realOk + realNok + realRw;
-    const realEfficiency = realTotal > 0 ? Math.round((realOk / realTotal) * 100) : 0;
+    const realEfficiency = realTotal > 0 ? roundToDecimal((realOk / realTotal) * 100, 1) : 0;
 
     // Estrutura com dados reais do servidor
     return {

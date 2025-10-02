@@ -139,7 +139,7 @@ export default function ProductionDashboard({
                   <div className="col-md-3 col-sm-6 mb-2">
                     <div className="p-2">
                       <h6 className="text-warning mb-1">
-                        {Math.round((summary?.totalNok || 0) / (summary?.totalProduction || 1) * 100)}%
+                        {((summary?.totalNok || 0) / (summary?.totalProduction || 1) * 100).toFixed(1)}%
                       </h6>
                       <small className="text-muted">Tasa de Rechazo</small>
                     </div>

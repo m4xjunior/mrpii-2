@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '../../../../../lib/database/connection';
+import { roundToDecimal } from '../../../../lib/shared';
 
 /**
  * API Endpoint para dados históricos detalhados de OEE
@@ -169,12 +170,12 @@ async function getDetailedHistoricalOEE(machineId: string, days: number, aggrega
     return data.map(row => ({
       ...row,
       periodo: row.periodo,
-      disponibilidad: Math.round(row.disponibilidad * 100) / 100,
-      rendimiento: Math.round(row.rendimiento * 100) / 100,
-      calidad: Math.round(row.calidad * 100) / 100,
-      oee: Math.round(row.oee * 100) / 100,
-      eficiencia: row.total_piezas > 0 ? Math.round((row.piezas_ok / row.total_piezas) * 100) : 0,
-      tiempo_parado_horas: Math.round((row.tiempo_parado_min / 60) * 100) / 100
+      disponibilidad: roundToDecimal(row.disponibilidad, 1),
+      rendimiento: roundToDecimal(row.rendimiento, 1),
+      calidad: roundToDecimal(row.calidad, 1),
+      oee: roundToDecimal(row.oee, 1),
+      eficiencia: row.total_piezas > 0 ? roundToDecimal((row.piezas_ok / row.total_piezas) * 100, 1) : 0,
+      tiempo_parado_horas: roundToDecimal(row.tiempo_parado_min / 60, 1)
     }));
 
   } catch (error) {
@@ -215,14 +216,14 @@ function calculateSummary(historicalData: any[]) {
 
   return {
     total_records: historicalData.length,
-    avg_oee: Math.round(avgOEE * 100) / 100,
-    avg_disponibilidad: Math.round(avgDisponibilidad * 100) / 100,
-    avg_rendimiento: Math.round(avgRendimiento * 100) / 100,
-    avg_calidad: Math.round(avgCalidad * 100) / 100,
+    avg_oee: roundToDecimal(avgOEE, 1),
+    avg_disponibilidad: roundToDecimal(avgDisponibilidad, 1),
+    avg_rendimiento: roundToDecimal(avgRendimiento, 1),
+    avg_calidad: roundToDecimal(avgCalidad, 1),
     total_production: totalProduction,
-    total_downtime_hours: Math.round(totalDowntime / 60 * 100) / 100,
-    best_oee: Math.round(bestOEE * 100) / 100,
-    worst_oee: Math.round(worstOEE * 100) / 100,
+    total_downtime_hours: roundToDecimal(totalDowntime / 60, 1),
+    best_oee: roundToDecimal(bestOEE, 1),
+    worst_oee: roundToDecimal(worstOEE, 1),
     trend: calculateTrend(historicalData.map(item => item.oee))
   };
 }
@@ -266,9 +267,9 @@ function generateChartData(historicalData: any[], aggregation: string) {
     },
     summary: {
       current_oee: oeeData[oeeData.length - 1] || 0,
-      avg_oee: oeeData.reduce((sum, val) => sum + val, 0) / oeeData.length,
-      max_oee: Math.max(...oeeData),
-      min_oee: Math.min(...oeeData)
+      avg_oee: roundToDecimal(oeeData.reduce((sum, val) => sum + val, 0) / oeeData.length, 1),
+      max_oee: roundToDecimal(Math.max(...oeeData), 1),
+      min_oee: roundToDecimal(Math.min(...oeeData), 1)
     }
   };
 }

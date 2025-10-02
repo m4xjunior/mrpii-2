@@ -140,5 +140,11 @@ $(function () {
 });
 
 /* perfect scrol bar */
-new PerfectScrollbar('.header-message-list');
-new PerfectScrollbar('.header-notifications-list');
+$(document).ready(function() {
+  if (document.querySelector('.header-message-list')) {
+    new PerfectScrollbar('.header-message-list');
+  }
+  if (document.querySelector('.header-notifications-list')) {
+    new PerfectScrollbar('.header-notifications-list');
+  }
+});

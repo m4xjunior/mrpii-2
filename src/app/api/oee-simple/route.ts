@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '../../../../lib/database/connection';
+import { roundToDecimal } from '../../../lib/shared';
 
 /**
  * API OEE com dados reais do banco MAPEX
@@ -99,7 +100,7 @@ async function getOEEHistory(machineId: string, startDate: Date, endDate: Date):
       // Considerando que todas as paradas são não planeadas por enquanto
       const tiempoDisponible = tiempoTotal - tiempoParada;
       const disponibilidad = tiempoTotal > 0
-        ? Math.round((tiempoDisponible / tiempoTotal) * 10000) / 100
+        ? roundToDecimal((tiempoDisponible / tiempoTotal) * 100, 1)
         : 0;
 
       // 2. RENDIMIENTO = (Unidades Reais Produzidas) / (Unidades Esperadas)
@@ -107,23 +108,23 @@ async function getOEEHistory(machineId: string, startDate: Date, endDate: Date):
       const unidadesProducidas = (row.total_ok || 0) + (row.total_nok || 0);
       const unidadesEsperadas = velocidadNominal * (tiempoProduccion / 3600); // Converter segundos para horas
       const rendimiento = unidadesEsperadas > 0
-        ? Math.round((unidadesProducidas / unidadesEsperadas) * 10000) / 100
+        ? roundToDecimal((unidadesProducidas / unidadesEsperadas) * 100, 1)
         : 0;
 
       // 3. CALIDAD = (Unidades OK) / (Unidades Totais Produzidas)
       const calidad = unidadesProducidas > 0
-        ? Math.round(((row.total_ok || 0) / unidadesProducidas) * 10000) / 100
+        ? roundToDecimal(((row.total_ok || 0) / unidadesProducidas) * 100, 1)
         : 0;
 
       // 4. OEE = Disponibilidad × Rendimiento × Calidad / 10000
-      const oee = Math.round((disponibilidad * rendimiento * calidad) / 10000);
+      const oee = roundToDecimal(((disponibilidad || 0) * (rendimiento || 0) * (calidad || 0)) / 10000, 1);
 
       return {
         periodo: row.periodo,
-        oee: Math.max(0, Math.min(100, oee)),
-        disponibilidad: Math.max(0, Math.min(100, disponibilidad)),
-        rendimiento: Math.max(0, Math.min(100, rendimiento)),
-        calidad: Math.max(0, Math.min(100, calidad)),
+        oee: Math.max(0, Math.min(100, oee || 0)),
+        disponibilidad: Math.max(0, Math.min(100, disponibilidad || 0)),
+        rendimiento: Math.max(0, Math.min(100, rendimiento || 0)),
+        calidad: Math.max(0, Math.min(100, calidad || 0)),
         total_ok: row.total_ok || 0,
         total_nok: row.total_nok || 0,
         total_rw: row.total_rw || 0,
@@ -185,7 +186,7 @@ async function getProductionData(machineId: string, startDate: Date, endDate: Da
     return result.map(row => {
       const piezasTotales = (row.piezas_ok || 0) + (row.piezas_nok || 0);
       const eficiencia = piezasTotales > 0
-        ? Math.round(((row.piezas_ok || 0) / piezasTotales) * 100)
+        ? roundToDecimal(((row.piezas_ok || 0) / piezasTotales) * 100, 1)
         : 0;
       
       const velocidad_promedio = row.tiempo_promedio_segundos > 0
@@ -197,7 +198,7 @@ async function getProductionData(machineId: string, startDate: Date, endDate: Da
         piezas_ok: row.piezas_ok || 0,
         piezas_nok: row.piezas_nok || 0,
         piezas_rw: row.piezas_rw || 0,
-        eficiencia: Math.max(0, Math.min(100, eficiencia)),
+        eficiencia: Math.max(0, Math.min(100, eficiencia || 0)),
         velocidad_promedio: Math.max(0, velocidad_promedio),
         of_actual: row.of_actual || 'N/A',
         producto_actual: row.producto_actual || 'N/A',
@@ -256,8 +257,8 @@ async function getDowntimeData(machineId: string, startDate: Date, endDate: Date
     const result = await executeQuery(sql, undefined, 'mapex');
     
     return result.map(row => {
-      const tiempoParadoHoras = Math.round((row.tiempo_parado_minutos || 0) / 60 * 100) / 100;
-      const tiempoPromedioParo = Math.round((row.tiempo_promedio_paro_minutos || 0) * 100) / 100;
+      const tiempoParadoHoras = roundToDecimal((row.tiempo_parado_minutos || 0) / 60, 1);
+      const tiempoPromedioParo = roundToDecimal((row.tiempo_promedio_paro_minutos || 0), 1);
       
       return {
         periodo: row.periodo,
@@ -310,16 +311,16 @@ function calculateSummary(
   const totalDowntime = downtimeData.reduce((sum, item) => sum + (item.tiempo_parado_horas || 0), 0);
 
   return {
-    avg_oee: Math.round(totalOEE / oeeHistory.length * 100) / 100,
-    avg_disponibilidad: Math.round(totalDisponibilidad / oeeHistory.length * 100) / 100,
-    avg_rendimiento: Math.round(totalRendimiento / oeeHistory.length * 100) / 100,
-    avg_calidad: Math.round(totalCalidad / oeeHistory.length * 100) / 100,
+    avg_oee: roundToDecimal(totalOEE / oeeHistory.length, 1),
+    avg_disponibilidad: roundToDecimal(totalDisponibilidad / oeeHistory.length, 1),
+    avg_rendimiento: roundToDecimal(totalRendimiento / oeeHistory.length, 1),
+    avg_calidad: roundToDecimal(totalCalidad / oeeHistory.length, 1),
     total_production: totalProduction,
-    total_downtime_hours: Math.round(totalDowntime * 100) / 100,
+    total_downtime_hours: roundToDecimal(totalDowntime, 1),
     total_records: oeeHistory.length,
     period_days: periodDays,
-    eficiencia: productionData.length > 0 
-      ? Math.round(productionData.reduce((sum, item) => sum + (item.eficiencia || 0), 0) / productionData.length)
+    eficiencia: productionData.length > 0
+      ? roundToDecimal(productionData.reduce((sum, item) => sum + (item.eficiencia || 0), 0) / productionData.length, 1)
       : 0
   };
 }

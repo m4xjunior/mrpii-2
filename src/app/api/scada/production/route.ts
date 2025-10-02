@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from 'lib/database/connection';
+import { roundToDecimal } from '../../../../lib/shared';
 
 interface ProductionData {
   machineId: string;
@@ -98,7 +99,7 @@ async function getRealProductionData(): Promise<ProductionData[]> {
       const nokDisplay = row.nok;
       const rwDisplay = row.rw;
       const totalDisplay = okDisplay + nokDisplay + rwDisplay;
-      const efficiency = totalDisplay > 0 ? Math.round((okDisplay / totalDisplay) * 100) : 0;
+      const efficiency = totalDisplay > 0 ? roundToDecimal((okDisplay / totalDisplay) * 100, 1) : 0;
       
       return {
         machineId: row.machineId || 'N/A',
@@ -107,7 +108,7 @@ async function getRealProductionData(): Promise<ProductionData[]> {
         nok: nokDisplay,
         rw: rwDisplay,
         total: totalDisplay,
-        efficiency: Math.max(0, Math.min(100, efficiency)),
+        efficiency: Math.max(0, Math.min(100, efficiency || 0)),
         timestamp: row.ultima_actualizacion || now.toISOString(),
         operator: row.operario || 'N/A',
         shift: row.turno || 'N/A',
@@ -137,7 +138,7 @@ function calculateSummary(data: ProductionData[]): ProductionSummary {
     totalNok,
     totalRw,
     totalProduction,
-    averageEfficiency: Math.round(averageEfficiency * 100) / 100,
+    averageEfficiency: roundToDecimal(averageEfficiency, 1) || 0,
     machines: data,
     timestamp: new Date().toISOString()
   };
