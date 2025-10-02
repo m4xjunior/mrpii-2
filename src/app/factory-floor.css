@@ -1,5 +1,20 @@
 /* CSS especializado para visibilidade no chão de fábrica */
 
+/* Fix para barra blanca que cubre el dashboard */
+.page-wrapper {
+    margin-left: 0 !important;
+}
+
+.page-content-wrapper {
+    margin-left: 0 !important;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+
+.page-content {
+    padding-top: 1rem !important;
+}
+
 /* Machine Cards Optimization for Factory Floor */
 .machine-card {
     border-left: 6px solid transparent !important;
@@ -134,11 +149,18 @@
     flex: 1 !important;
 }
 
+.machine-name-row {
+    display: flex !important;
+    align-items: center !important;
+    gap: 1rem !important;
+    margin-bottom: 0.5rem !important;
+}
+
 .machine-name {
     font-size: 1.4rem !important;
     font-weight: 700 !important;
     color: #1a1a1a !important;
-    margin: 0 0 0.5rem 0 !important;
+    margin: 0 !important;
     text-transform: uppercase !important;
     letter-spacing: 0.5px !important;
     line-height: 1.2 !important;
@@ -240,11 +262,62 @@
     letter-spacing: 0.3px !important;
 }
 
+.status-indicator {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 1rem !important;
+    flex-wrap: wrap !important;
+}
+
+/* Círculo minimalista de progreso OF al lado del nombre */
+.of-progress-circle {
+    position: relative !important;
+    width: 50px !important;
+    height: 50px !important;
+    flex-shrink: 0 !important;
+}
+
+.circular-progress {
+    width: 100% !important;
+    height: 100% !important;
+    transform: rotate(-90deg) !important;
+}
+
+.circle-bg {
+    fill: none !important;
+    stroke: rgba(13, 110, 253, 0.15) !important;
+    stroke-width: 6 !important;
+}
+
+.circle-progress {
+    fill: none !important;
+    stroke: #0d6efd !important;
+    stroke-width: 6 !important;
+    stroke-linecap: round !important;
+    transition: stroke-dasharray 0.6s ease !important;
+}
+
+.circle-text {
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    text-align: center !important;
+}
+
+.circle-percentage {
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+    color: #0d6efd !important;
+    display: block !important;
+    line-height: 1 !important;
+}
+
 .status-extra {
     display: flex !important;
     justify-content: center !important;
     gap: 0.5rem !important;
-    margin-top: 0.75rem !important;
     flex-wrap: wrap !important;
     font-size: 0.75rem !important;
     font-weight: 600 !important;

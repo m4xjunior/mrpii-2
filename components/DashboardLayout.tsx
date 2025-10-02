@@ -48,9 +48,23 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 }) => {
   const { currentTheme } = useThemeSwitcher();
 
+  // Estado para controlar o layout da sidebar
+  const [sidebarToggled, setSidebarToggled] = useState(false);
+
   useEffect(() => {
     console.log('🏠 DashboardLayout: Tema actual:', currentTheme);
   }, [currentTheme]);
+
+  // Listener para eventos da sidebar
+  useEffect(() => {
+    const handleSidebarToggle = (event: any) => {
+      setSidebarToggled(event.detail.isMinimized);
+      console.log('📏 DashboardLayout: Sidebar toggle:', event.detail.isMinimized ? 'minimizada' : 'expandida');
+    };
+
+    document.addEventListener('sidebarToggle', handleSidebarToggle);
+    return () => document.removeEventListener('sidebarToggle', handleSidebarToggle);
+  }, []);
 
   const alerts = machines
     .map(m => {
@@ -85,7 +99,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   };
 
   return (
-    <div className="wrapper">
+    <div className={`wrapper ${sidebarToggled ? 'toggled' : ''}`}>
       {/* Sidebar */}
       <div className="sidebar-wrapper" data-simplebar="true">
         <div className="sidebar-header">
@@ -151,100 +165,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         </ul>
       </div>
 
-      {/* Header */}
-      <header className="top-header">
-        <nav className="navbar navbar-expand">
-          <div className="left-topbar d-flex align-items-center">
-            <a href="javascript:;" className="toggle-btn">
-              <i className="bx bx-menu"></i>
-            </a>
-          </div>
-          <div className="flex-grow-1 search-bar">
-            <div className="input-group">
-              <button className="btn btn-search-back search-arrow-back" type="button">
-                <i className="bx bx-arrow-back"></i>
-              </button>
-              <input type="text" className="form-control" placeholder="buscar" />
-              <button className="btn btn-search" type="button">
-                <i className="lni lni-search-alt"></i>
-              </button>
-            </div>
-          </div>
-          <div className="right-topbar ms-auto">
-            <ul className="navbar-nav">
-              <li className="nav-item search-btn-mobile">
-                <a className="nav-link position-relative" href="javascript:;">
-                  <i className="bx bx-search vertical-align-middle"></i>
-                </a>
-              </li>
-              <li className="nav-item dropdown dropdown-lg">
-                <a className="nav-link dropdown-toggle dropdown-toggle-nocaret position-relative" href="javascript:;" data-bs-toggle="dropdown">
-                  <span className="msg-count">{alerts.length}</span>
-                  <i className="bx bx-bell vertical-align-middle"></i>
-                </a>
-                <div className="dropdown-menu dropdown-menu-end">
-                  <a href="javascript:;">
-                    <div className="msg-header">
-                      <h6 className="msg-header-title">{alerts.length} Nuevas</h6>
-                      <p className="msg-header-subtitle">Alertas de Máquinas</p>
-                    </div>
-                  </a>
-                  <div className="header-notifications-list">
-                    {alerts.length === 0 && (
-                      <div className="dropdown-item text-center text-muted">Sin alertas</div>
-                    )}
-                    {alerts.slice(0, 8).map((a, idx) => (
-                      <a key={idx} className="dropdown-item" href="javascript:;">
-                        <div className="d-flex align-items-center">
-                          <div className={`notify ${a.type === 'PARADA' ? 'bg-light-danger text-danger' : 'bg-light-warning text-warning'}`}>
-                            <i className={`${a.type === 'PARADA' ? 'fas fa-exclamation-triangle' : 'fas fa-times-circle'}`}></i>
-                          </div>
-                          <div className="flex-grow-1">
-                            <h6 className="msg-name">
-                              {a.machine}
-                              <span className="msg-time float-end">{a.time}</span>
-                            </h6>
-                            <p className="msg-info">{a.type}: {a.message}</p>
-                          </div>
-                        </div>
-                      </a>
-                    ))}
-                  </div>
-                  <a href="javascript:;">
-                    <div className="text-center msg-footer">Ver Todas las Alertas</div>
-                  </a>
-                </div>
-              </li>
-              <li className="nav-item dropdown dropdown-user-profile">
-                <a className="nav-link dropdown-toggle dropdown-toggle-nocaret" href="javascript:;" data-bs-toggle="dropdown">
-                  <div className="d-flex user-box align-items-center">
-                    <div className="user-info">
-                      <p className="user-name mb-0">Operador SCADA</p>
-                      <p className="designattion mb-0">En línea</p>
-                    </div>
-                    <img src="assets/images/avatars/avatar-1.png" className="user-img" alt="user avatar" />
-                  </div>
-                </a>
-                <div className="dropdown-menu dropdown-menu-end">
-                  <a className="dropdown-item" href="javascript:;">
-                    <i className="bx bx-user"></i><span>Perfil</span>
-                  </a>
-                  <a className="dropdown-item" href="javascript:;">
-                    <i className="bx bx-cog"></i><span>Configuración</span>
-                  </a>
-                  <a className="dropdown-item" href="javascript:;">
-                    <i className="bx bx-tachometer"></i><span>Panel</span>
-                  </a>
-                  <div className="dropdown-divider mb-0"></div>
-                  <a className="dropdown-item" href="javascript:;">
-                    <i className="bx bx-power-off"></i><span>Cerrar Sesión</span>
-                  </a>
-                </div>
-              </li>
-            </ul>
-          </div>
-        </nav>
-      </header>
 
       {/* Main Content */}
       <div className="page-wrapper">

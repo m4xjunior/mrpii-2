@@ -344,6 +344,14 @@ export default function InformesPage() {
       }
       if (filtrosData.ofs.length > 0) {
         params.set("ofList", filtrosData.ofs.join(","));
+        console.log("📊 fetchInformes - OFs sendo enviadas para API:", {
+          ofsCount: filtrosData.ofs.length,
+          ofsList: filtrosData.ofs,
+          ofsJoined: filtrosData.ofs.join(","),
+          paramsString: params.toString(),
+        });
+      } else {
+        console.log("📊 fetchInformes - Nenhuma OF selecionada");
       }
       params.set("agruparPor", filtrosData.agruparPor);
 
@@ -477,6 +485,15 @@ export default function InformesPage() {
       // Use the OF codes directly (no need to extract from composite ID)
       const ofCodes = uniqueSelectedOFs;
       console.log("🔍 OF Selection - ofCodes to use:", ofCodes);
+      console.log("📊 OF Selection - Diagnostics:", {
+        selectedOFsCount: selectedOFs.length,
+        uniqueSelectedOFsCount: uniqueSelectedOFs.length,
+        ofCodesCount: ofCodes.length,
+        ofCodesList: ofCodes,
+        filtrosBefore: { ...filtros },
+        hasMachines: filtros.maquinas.length > 0,
+        hasDates: filtros.desde && filtros.hasta,
+      });
 
       const nuevosFiltros = { ...filtros, ofs: ofCodes };
       console.log("🔍 OF Selection - nuevosFiltros:", nuevosFiltros);
@@ -836,14 +853,14 @@ export default function InformesPage() {
 
       <style jsx>{`
         .view-toggle-section {
-          margin-bottom: 20px;
+          margin-bottom: 1rem;
         }
 
         .view-toggle {
           display: flex;
           gap: 8px;
           background: var(--card-bg, #ffffff);
-          padding: 16px;
+          padding: 12px;
           border-radius: 8px;
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
@@ -875,8 +892,10 @@ export default function InformesPage() {
         .alerts-section,
         .machine-status-section,
         .oee-breakdown-section,
-        .downtime-section {
-          margin-bottom: 20px;
+        .downtime-section,
+        .datos-generales-section,
+        .turnos-detalhados-section {
+          margin-bottom: 1rem;
         }
 
         @media (max-width: 768px) {
